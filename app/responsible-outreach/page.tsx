@@ -1,0 +1,5 @@
+import { DocumentPage } from "@/components/document-page";
+
+export default function ResponsibleOutreachPage() {
+  return <DocumentPage eyebrow="POLICY / RESPONSIBLE OUTREACH" title="Research broadly. Contact narrowly." intro="Public contact data is not blanket permission. FirstContact automates discovery and drafting while consequential outreach remains governed by people and policy."><h2>Every send must pass</h2><ul><li>A current public source and a specific relevance reason.</li><li>Recipient-type, jurisdiction, and lawful-basis review.</li><li>Human approval of the exact recipient and exact message.</li><li>Suppression checks at approval and immediately before delivery.</li><li>Clear identity, a monitored reply path, postal address, and one-step unsubscribe.</li></ul><h2>Prohibited use</h2><p>No purchased lists, contact-data resale, identity concealment, inbox rotation, anti-spam evasion, invented referrals, or unattended high-volume cold email. Operators remain responsible for legal review in every jurisdiction where they process data or send messages.</p></DocumentPage>;
+}

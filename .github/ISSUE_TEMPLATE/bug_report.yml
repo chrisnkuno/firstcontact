@@ -1,0 +1,39 @@
+name: Bug report
+description: Report reproducible behavior in FirstContact.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include API keys, real contact lists, founder records, or private outreach content.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Provide the smallest safe sequence that reproduces the problem.
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Runtime mode
+      options: [Preview, Configured local deployment, Staging, Production]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Commit or version
+      placeholder: Commit SHA or release
+  - type: textarea
+    id: verification
+    attributes:
+      label: Additional context
+      description: Sanitized logs, screenshots, browser, operating system, or provider involved.

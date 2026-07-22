@@ -1,0 +1,48 @@
+{
+  "name": "firstcontact",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open infrastructure connecting overlooked founders and institutions with aligned global capital.",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/chrisnkuno/firstcontact.git" },
+  "homepage": "https://github.com/chrisnkuno/firstcontact#readme",
+  "bugs": { "url": "https://github.com/chrisnkuno/firstcontact/issues" },
+  "packageManager": "bun@1.3.14",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit --incremental false",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "tsc --noEmit --incremental false && vitest run && eslint . && next build",
+    "convex:dev": "convex dev",
+    "convex:deploy": "convex deploy"
+  },
+  "dependencies": {
+    "@convex-dev/auth": "latest",
+    "clsx": "latest",
+    "convex": "latest",
+    "exa-js": "latest",
+    "lucide-react": "latest",
+    "motion": "latest",
+    "next": "latest",
+    "openai": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "resend": "latest",
+    "svix": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "^9.39.2",
+    "eslint-config-next": "latest",
+    "typescript": "^5.9.3",
+    "vitest": "latest"
+  }
+}

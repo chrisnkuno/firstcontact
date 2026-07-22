@@ -1,0 +1,30 @@
+name: Feature request
+description: Propose a focused product or infrastructure improvement.
+title: "[Proposal]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Who is affected, and what cannot they do today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Explain the smallest useful change and its expected outcome.
+    validations:
+      required: true
+  - type: textarea
+    id: data
+    attributes:
+      label: Data and automation impact
+      description: Identify new personal data, retention, model behavior, outreach, or external side effects.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

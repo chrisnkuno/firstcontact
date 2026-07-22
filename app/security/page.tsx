@@ -1,0 +1,5 @@
+import { DocumentPage } from "@/components/document-page";
+
+export default function SecurityPage() {
+  return <DocumentPage eyebrow="TRUST / SECURITY" title="Treat every boundary as untrusted." intro="Founder input, web sources, model output, provider events, and browser identities all cross explicit trust boundaries."><h2>Core controls</h2><ul><li>Identity-derived tenant authorization on every production read and write.</li><li>Server-only provider credentials and redacted structured logs.</li><li>Source evidence and human review for model-produced claims.</li><li>Stable idempotency keys for messages and webhook-event deduplication.</li><li>Signature verification over raw webhook bodies.</li><li>Rate limits, cost ceilings, retention rules, and an emergency campaign pause.</li></ul><h2>Report privately</h2><p>Do not publish exploit details or personal information in a public issue. Repository operators must configure and monitor a private vulnerability-reporting channel before launch.</p></DocumentPage>;
+}

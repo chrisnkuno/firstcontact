@@ -1,0 +1,13 @@
+node_modules
+.next
+.vercel
+.env
+.env.local
+.env.*.local
+!.env.example
+coverage
+dist
+*.log
+*.tsbuildinfo
+.DS_Store
+convex/_generated

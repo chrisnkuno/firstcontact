@@ -1,0 +1,5 @@
+import { DocumentPage } from "@/components/document-page";
+
+export default function OpenSourcePage() {
+  return <DocumentPage eyebrow="OPEN SOURCE / MIT" title="Infrastructure you can inspect, fork, and govern." intro="FirstContact keeps core matching, policy, and workflow logic visible. Providers are adapters; your deployment owns its data and operating decisions."><h2>Repository map</h2><ul><li><code>app/</code> — public experience, workspace, and provider-facing routes</li><li><code>convex/</code> — durable multi-tenant data and workflow state</li><li><code>lib/</code> — portable domain, matching, and policy logic</li><li><code>docs/</code> — architecture, compliance, security, deployment, and roadmap</li><li><code>tests/</code> — policy and matching invariants</li></ul><h2>Run it</h2><pre><code>bun install{"\n"}cp .env.example .env.local{"\n"}bun run dev</code></pre><p>The application is useful in clearly labeled preview mode without provider credentials. See the root README and contributor guide in the repository for the full setup and verification contract.</p></DocumentPage>;
+}
