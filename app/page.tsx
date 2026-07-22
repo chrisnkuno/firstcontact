@@ -12,7 +12,7 @@ const steps = [
 
 export default function Home() {
   return (
-    <main>
+    <main id="main-content">
       <SiteHeader />
       <section className="hero section-shell">
         <div className="eyebrow"><span>OPEN SOURCE / GLOBAL CAPITAL ACCESS</span><b>v0.1</b></div>
@@ -63,11 +63,16 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="two-sides section-shell">
+        <div className="section-heading"><span>04 / TWO USEFUL VIEWS</span><h2>Agency for founders.<br />Context for capital.</h2><p>Each side sees only what it needs. Organizations govern their narrative and outreach; investors browse consented, decision-useful context.</p></div>
+        <div className="two-side-grid"><article><span>FOR STARTUPS + INSTITUTIONS</span><h3>Control the pipeline.</h3><p>Review matches, approve specific messages, choose catalogue visibility, set campaign pace, and pause outreach at any time.</p><Link href="/workspace">Open founder workspace <ArrowRight size={16} /></Link></article><article><span>FOR INVESTORS</span><h3>Browse beyond the usual network.</h3><p>Filter a curated flow by geography, stage, sector, and organization type. See strengths, open questions, context, and capital needs before expressing interest.</p><Link href="/catalogue">Explore the VC catalogue <ArrowRight size={16} /></Link></article></div>
+      </section>
+
       <section className="cta section-shell">
         <span>MAKE THE FIRST CONTACT</span><h2>Your geography should be context.<br /><em>Not a constraint.</em></h2>
-        <div><Link className="button button-light" href="/apply">Create a founder profile <ArrowRight size={18} /></Link><Link className="button button-outline" href="/workspace">View the workspace</Link></div>
+        <div><Link className="button button-light" href="/apply">Create an organization profile <ArrowRight size={18} /></Link><Link className="button button-outline" href="/catalogue">Browse the catalogue</Link></div>
       </section>
-      <footer className="footer section-shell"><div><strong>FIRSTCONTACT</strong><p>Open infrastructure for capital access.<br />Built with care, from everywhere.</p></div><div><span>PROJECT</span><Link href="/workspace">Workspace</Link><Link href="/open-source">Open source</Link><a href="/api/health">System status</a></div><div><span>POLICIES</span><Link href="/security">Security</Link><Link href="/responsible-outreach">Responsible outreach</Link></div><p className="license">MIT · FirstContact contributors</p></footer>
+      <footer className="footer section-shell"><div><strong>FIRSTCONTACT</strong><p>Open infrastructure for capital access.<br />Built with care, from everywhere.</p></div><div><span>PRODUCT</span><Link href="/workspace">Founder workspace</Link><Link href="/catalogue">VC catalogue</Link><Link href="/apply">Organization intake</Link></div><div><span>PROJECT + POLICIES</span><a href="https://github.com/chrisnkuno/firstcontact" target="_blank" rel="noreferrer">GitHub ↗</a><Link href="/responsible-outreach">Responsible outreach</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/security">Security</Link></div><p className="license">MIT · FirstContact contributors</p></footer>
     </main>
   );
 }

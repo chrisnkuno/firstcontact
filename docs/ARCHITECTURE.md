@@ -9,6 +9,7 @@ FirstContact is designed around five invariants:
 3. **Side effects are idempotent.** Every message and webhook has a stable idempotency key.
 4. **Multi-tenancy is explicit.** Every founder-owned record resolves through an organization membership.
 5. **Failure is visible.** Missing provider configuration produces preview or blocked states, never synthetic success.
+6. **Visibility is field-specific.** Private intake, outreach-approved claims, and catalogue-approved fields are separate data boundaries.
 
 ## Components
 
@@ -19,6 +20,12 @@ The App Router serves public pages, authenticated workspace surfaces, health rep
 ### Convex source of truth
 
 `convex/schema.ts` models tenant state and operational history. Mutations enforce state transitions; actions call external providers; scheduled workflows handle retries and rate limits. Convex recommends recording intent in a mutation and scheduling network side effects, because actions themselves cannot be automatically retried safely.
+
+### Two-sided product boundary
+
+Organizations own profiles, campaigns, and catalogue listings. A listing is private until its specific public context, strengths, considerations, traction, and capital need are approved. Investor interest creates an `investorInterests` record; it does not reveal private founder contact data. The organization accepts or declines before any introduction is shared.
+
+“Weaknesses” are represented as founder-approved **open questions or considerations**, never model-generated negative judgments. This keeps diligence useful without creating an opaque reputation score.
 
 Recommended workflow steps:
 

@@ -3,9 +3,11 @@ import { z } from "zod";
 export const regions = ["Africa", "Latin America", "MENA", "South Asia", "Southeast Asia", "Other"] as const;
 export const capitalRegions = ["US", "UK", "EU", "APAC"] as const;
 export const stages = ["pre-seed", "seed", "series-a", "series-b+", "growth", "institutional"] as const;
+export const organizationTypes = ["startup", "institution"] as const;
 
 export const startupProfileSchema = z.object({
   name: z.string().trim().min(2).max(100),
+  organizationType: z.enum(organizationTypes),
   website: z.string().url(),
   location: z.string().trim().min(2).max(120),
   region: z.enum(regions),

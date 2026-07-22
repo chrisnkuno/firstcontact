@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Do not open a public issue containing exploit details or personal data. Use the repository’s private vulnerability-reporting channel. Operators should replace this sentence with a monitored security address before public launch. Include impact, reproduction steps, and a minimal proof of concept.
+Do not open a public issue containing exploit details or personal data. Use this repository’s enabled GitHub private vulnerability-reporting channel. Include impact, reproduction steps, and a minimal proof of concept. Independent operators must configure their own monitored reporting channel.
 
 ## Trust boundaries
 

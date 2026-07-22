@@ -1,5 +1,7 @@
 # Deployment
 
+The maintained public preview is deployed at [firstcontact-tau.vercel.app](https://firstcontact-tau.vercel.app). It intentionally runs without Convex or provider credentials and reports `preview` through `/api/health`.
+
 ## Environments
 
 Maintain separate `development`, `staging`, and `production` Convex deployments, provider keys, Resend domains, and webhook secrets. Never use production contact data for local testing.

@@ -1,12 +1,16 @@
 # FirstContact
 
-**Open infrastructure for capital access beyond capital-dense ecosystems.**
+**A welcoming, open-source bridge between overlooked founders and thoughtful investors worldwide.**
 
 [![CI](https://github.com/chrisnkuno/firstcontact/actions/workflows/ci.yml/badge.svg)](https://github.com/chrisnkuno/firstcontact/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-173d2d.svg)](LICENSE)
 [![Responsible outreach](https://img.shields.io/badge/outreach-human--approved-c8fa52.svg)](docs/COMPLIANCE.md)
 
-FirstContact helps startups and institutions describe their work in context, discover relevant investors across the US, UK, EU, and APAC, build evidence-backed match lists, draft tailored introductions, and operate a transparent fundraising pipeline.
+**[Explore the live public preview →](https://firstcontact-tau.vercel.app)**
+
+Try the [founder control center](https://firstcontact-tau.vercel.app/workspace) or browse the [VC catalogue](https://firstcontact-tau.vercel.app/catalogue). All public organizations and pipeline activity are clearly labeled fictional preview data; no form or interest submission is persisted.
+
+FirstContact gives startups and institutions control over a context-rich fundraising pipeline, while giving investors a curated way to discover opportunities beyond their usual networks. Organizations decide what becomes public, what can enter an outreach draft, and what gets sent. Investors see approved context, strengths, open questions, traction, and capital needs before requesting an introduction.
 
 It is deliberately **not** an autonomous cold-email bot. Research and drafting can be automated; contact selection and sending are controlled by source, consent, jurisdiction, suppression, rate-limit, and human-approval gates.
 
@@ -15,10 +19,13 @@ It is deliberately **not** an autonomous cold-email bot. Research and drafting c
 - A responsive public site explaining the model and principles.
 - Founder intake with explicit processing consent and a no-transmission preview mode.
 - An operational workspace showing matches, fit evidence, risks, drafts, and event history.
+- Founder and institution controls for discovery scope, campaign state, delivery pace, message review, and catalogue visibility.
+- An investor-facing VC catalogue with geographic and organization-type filters, context-rich profiles, diligence prompts, and a privacy-preserving interest flow.
 - Exa-powered live discovery with a clearly labeled sample fallback.
 - GPT-5 nano structured drafting constrained to supplied facts.
 - Resend delivery with one-click unsubscribe headers and fail-closed policy checks.
 - Svix signature verification for Resend events.
+- Search metadata, sitemap, robots policy, web manifest, social preview image, security headers, custom 404, privacy, and terms pages.
 - A multi-tenant Convex schema for organizations, profiles, sources, investors, campaigns, messages, suppressions, webhooks, and audit events.
 - Pure, tested policy and matching modules.
 
@@ -27,6 +34,7 @@ It is deliberately **not** an autonomous cold-email bot. Research and drafting c
 | Capability | Preview without keys | Configured deployment |
 |---|---|---|
 | Public site and workspace | Fully available | Fully available |
+| VC catalogue | Fictional, labeled profiles and local interest confirmation | Founder-approved listings and authenticated investor interest |
 | Founder intake | Browser-only confirmation | Persist through Convex after auth wiring |
 | Investor discovery | Labeled sample matches | Live Exa results with request IDs |
 | Introduction drafting | Non-fabricated placeholder | Structured GPT-5 nano output |
@@ -70,7 +78,8 @@ See [Deployment](docs/DEPLOYMENT.md) for the complete sequence.
 
 ```text
 Founder → profile + consent → Convex source of truth
-                              ↓
+          ├─ approved public fields → VC catalogue → investor interest
+          ↓
                     Exa discovery action
                               ↓
                    normalized sources/investors
@@ -91,11 +100,13 @@ Provider integrations stay behind narrow boundaries. Exa is discovery, OpenAI is
 - [Security and threat model](docs/SECURITY.md)
 - [Deployment and provider setup](docs/DEPLOYMENT.md)
 - [Product roadmap](docs/ROADMAP.md)
+- [Launch-readiness status](docs/LAUNCH_READINESS.md)
 - [Contributing](CONTRIBUTING.md)
 
 ## Current limitations
 
 - Authentication UI and identity-provider configuration are deployment-specific and not silently stubbed.
+- The hosted catalogue uses fictional profiles; real listings require organization consent and authenticated investor identities.
 - Exa results are returned by the route but production normalization should run as a durable Convex workflow.
 - The Resend route verifies signatures but its persistence call is left as an explicit integration seam until Convex code generation is run.
 - This repository provides engineering controls and operational guidance, not legal advice.

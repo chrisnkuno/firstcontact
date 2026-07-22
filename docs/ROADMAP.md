@@ -5,6 +5,7 @@
 - Product narrative, founder intake, sample workspace, provider boundaries.
 - Transparent deterministic matcher and outbound safety policy.
 - Multi-tenant Convex schema, webhook verification, tests, and operating docs.
+- Founder/institution control center and consented investor-catalogue preview.
 
 ## v0.2 — Secure private beta
 
