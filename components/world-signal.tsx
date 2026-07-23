@@ -1,31 +1,31 @@
 const routes = [
   {
-    d: "M555 497 C 420 425, 330 350, 230 340",
+    d: "M579 467 C 481 380, 366 338, 253 336",
     delay: "0s",
     label: "United States",
   },
   {
-    d: "M555 497 C 510 420, 480 365, 456 326",
+    d: "M579 467 C 547 404, 510 344, 474 295",
     delay: "1.1s",
     label: "United Kingdom",
   },
   {
-    d: "M555 497 C 540 430, 525 385, 505 350",
+    d: "M579 467 C 568 396, 533 338, 486 298",
     delay: "2.2s",
     label: "European Union",
   },
   {
-    d: "M555 497 C 665 515, 750 520, 833 495",
+    d: "M579 467 C 647 479, 715 475, 772 458",
     delay: ".55s",
     label: "Asia Pacific",
   },
 ];
 
 const capitalNodes = [
-  { x: 230, y: 340, label: "US", anchor: "end", dx: -12, dy: -11 },
-  { x: 456, y: 326, label: "UK", anchor: "end", dx: -11, dy: -11 },
-  { x: 505, y: 350, label: "EU", anchor: "start", dx: 11, dy: -10 },
-  { x: 833, y: 495, label: "APAC", anchor: "start", dx: 12, dy: -10 },
+  { x: 253, y: 336, label: "US", anchor: "end", dx: -12, dy: -11 },
+  { x: 474, y: 295, label: "UK", anchor: "end", dx: -11, dy: -11 },
+  { x: 486, y: 298, label: "EU", anchor: "start", dx: 11, dy: 14 },
+  { x: 772, y: 458, label: "APAC", anchor: "start", dx: 12, dy: -10 },
 ] as const;
 
 export function WorldSignal() {
@@ -96,7 +96,7 @@ export function WorldSignal() {
           ))}
         </g>
 
-        <g className="origin" transform="translate(555 497)" aria-hidden="true">
+        <g className="origin" transform="translate(579 467)" aria-hidden="true">
           <circle r="31" />
           <circle r="15" />
           <circle r="4" />
@@ -118,8 +118,8 @@ export function WorldSignal() {
         </g>
 
         <g className="origin-label" aria-hidden="true">
-          <line x1="555" y1="528" x2="555" y2="545" />
-          <text x="555" y="560" textAnchor="middle">
+          <line x1="579" y1="498" x2="579" y2="515" />
+          <text x="579" y="530" textAnchor="middle">
             OVERLOOKED ECOSYSTEM
           </text>
         </g>
