@@ -1,27 +1,133 @@
 const routes = [
-  { d: "M395 240 C 510 165, 645 145, 786 102", delay: "0s" },
-  { d: "M395 240 C 535 248, 663 232, 832 205", delay: "1.2s" },
-  { d: "M395 240 C 490 320, 630 338, 765 350", delay: "2.4s" },
-  { d: "M395 240 C 293 180, 212 145, 93 118", delay: ".6s" },
+  {
+    d: "M555 497 C 420 425, 330 350, 230 340",
+    delay: "0s",
+    label: "United States",
+  },
+  {
+    d: "M555 497 C 510 420, 480 365, 456 326",
+    delay: "1.1s",
+    label: "United Kingdom",
+  },
+  {
+    d: "M555 497 C 540 430, 525 385, 505 350",
+    delay: "2.2s",
+    label: "European Union",
+  },
+  {
+    d: "M555 497 C 665 515, 750 520, 833 495",
+    delay: ".55s",
+    label: "Asia Pacific",
+  },
 ];
+
+const capitalNodes = [
+  { x: 230, y: 340, label: "US", anchor: "end", dx: -12, dy: -11 },
+  { x: 456, y: 326, label: "UK", anchor: "end", dx: -11, dy: -11 },
+  { x: 505, y: 350, label: "EU", anchor: "start", dx: 11, dy: -10 },
+  { x: 833, y: 495, label: "APAC", anchor: "start", dx: 12, dy: -10 },
+] as const;
 
 export function WorldSignal() {
   return (
-    <div className="signal" aria-label="Illustration of capital routes connecting global funds to overlooked ecosystems">
-      <svg viewBox="0 0 920 430" role="img">
-        <defs><filter id="glow"><feGaussianBlur stdDeviation="4" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter></defs>
-        <g className="map-grid">
-          {Array.from({ length: 15 }, (_, i) => <line key={`v${i}`} x1={i * 66} y1="0" x2={i * 66} y2="430" />)}
-          {Array.from({ length: 8 }, (_, i) => <line key={`h${i}`} x1="0" y1={i * 62} x2="920" y2={i * 62} />)}
+    <div
+      className="signal"
+      aria-label="Capital routes connecting global investors to overlooked ecosystems"
+    >
+      <svg viewBox="0 0 1010 666" role="img">
+        <title>FirstContact global capital network</title>
+        <desc>
+          An accurate world map showing routes between an emerging ecosystem in
+          East Africa and investors in the United States, United Kingdom,
+          European Union, and Asia Pacific.
+        </desc>
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="4" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <g className="map-grid" aria-hidden="true">
+          {Array.from({ length: 17 }, (_, index) => (
+            <line
+              key={`vertical-${index}`}
+              x1={index * 63}
+              y1="0"
+              x2={index * 63}
+              y2="666"
+            />
+          ))}
+          {Array.from({ length: 11 }, (_, index) => (
+            <line
+              key={`horizontal-${index}`}
+              x1="0"
+              y1={index * 66}
+              x2="1010"
+              y2={index * 66}
+            />
+          ))}
         </g>
-        <path className="land" d="M62 93l67-38 90 8 47 40-22 51-54 18-19 67-62 29-38-30 14-64-43-36zm273 73 35-47 71-11 46 31-10 51-45 25-12 91-34 73-41-43-11-75-38-49zm245-101 90-31 94 16 88 55-26 35-72-3-38 46-68-9-28-49-57-18zm89 158 57-24 47 17 31 57-27 42-61-9-44-39z" />
-        {routes.map((route, index) => <g key={route.d}><path className="route" d={route.d} /><circle className="traveler" r="4" filter="url(#glow)" style={{ animationDelay: route.delay }}><animateMotion dur={`${4 + index * .4}s`} repeatCount="indefinite" path={route.d} /></circle></g>)}
-        <g className="origin" transform="translate(395 240)"><circle r="31" /><circle r="15" /><circle r="4" /></g>
-        <g className="nodes"><circle cx="786" cy="102" r="6" /><circle cx="832" cy="205" r="6" /><circle cx="765" cy="350" r="6" /><circle cx="93" cy="118" r="6" /></g>
+
+        <image
+          className="world-map"
+          href="/world-map.svg"
+          width="1010"
+          height="666"
+          aria-hidden="true"
+        />
+
+        <g aria-hidden="true">
+          {routes.map((route, index) => (
+            <g key={route.label}>
+              <path className="route" d={route.d} />
+              <circle className="traveler" r="4" filter="url(#glow)">
+                <animateMotion
+                  begin={route.delay}
+                  dur={`${4 + index * 0.45}s`}
+                  repeatCount="indefinite"
+                  path={route.d}
+                />
+              </circle>
+            </g>
+          ))}
+        </g>
+
+        <g className="origin" transform="translate(555 497)" aria-hidden="true">
+          <circle r="31" />
+          <circle r="15" />
+          <circle r="4" />
+        </g>
+
+        <g className="nodes" aria-hidden="true">
+          {capitalNodes.map((node) => (
+            <g key={node.label}>
+              <circle cx={node.x} cy={node.y} r="6" />
+              <text
+                x={node.x + node.dx}
+                y={node.y + node.dy}
+                textAnchor={node.anchor}
+              >
+                {node.label}
+              </text>
+            </g>
+          ))}
+        </g>
+
+        <g className="origin-label" aria-hidden="true">
+          <line x1="555" y1="528" x2="555" y2="545" />
+          <text x="555" y="560" textAnchor="middle">
+            OVERLOOKED ECOSYSTEM
+          </text>
+        </g>
       </svg>
-      <span className="signal-label label-origin">OVERLOOKED<br />ECOSYSTEM</span>
-      <span className="signal-label label-us">US</span><span className="signal-label label-eu">UK / EU</span><span className="signal-label label-apac">APAC</span>
-      <div className="signal-status"><span /> SIGNAL ACTIVE <b>04</b></div>
+
+      <div className="signal-status">
+        <span /> SIGNAL ACTIVE <b>04</b>
+      </div>
     </div>
   );
 }

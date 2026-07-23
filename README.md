@@ -99,6 +99,7 @@ Provider integrations stay behind narrow boundaries. Exa is discovery, OpenAI is
 - [Responsible outreach and privacy](docs/COMPLIANCE.md)
 - [Security and threat model](docs/SECURITY.md)
 - [Deployment and provider setup](docs/DEPLOYMENT.md)
+- [World map data and attribution](docs/MAP_DATA.md)
 - [Product roadmap](docs/ROADMAP.md)
 - [Launch-readiness status](docs/LAUNCH_READINESS.md)
 - [Contributing](CONTRIBUTING.md)
