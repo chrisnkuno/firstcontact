@@ -1,6 +1,6 @@
 # Deployment
 
-The maintained public preview is deployed at [firstcontact-tau.vercel.app](https://firstcontact-tau.vercel.app). It intentionally runs without Convex or provider credentials and reports `preview` through `/api/health`.
+The maintained deployment is available at [firstcontact-tau.vercel.app](https://firstcontact-tau.vercel.app). The signup path uses Convex persistence, while catalogue, workspace, investor discovery, drafting, and outreach remain explicitly labeled preview or blocked until their respective production controls are configured.
 
 ## Environments
 
@@ -22,7 +22,17 @@ bunx convex dev
 bunx convex deploy
 ```
 
-The first command creates a development project and generates `convex/_generated`. Configure authentication following the current [Convex Auth documentation](https://docs.convex.dev/auth) and enforce membership checks described in the architecture document before storing real data.
+The first command creates a development project and generates `convex/_generated`. Configure authentication following the current [Convex Auth documentation](https://docs.convex.dev/auth) and enforce membership checks described in the architecture document before enabling private account data.
+
+For public signup ingestion, generate a high-entropy secret and set the identical value on both runtimes:
+
+```bash
+bunx convex env set SIGNUP_INGEST_SECRET
+vercel env add SIGNUP_INGEST_SECRET production
+vercel env add CONVEX_URL production
+```
+
+The Next.js route validates and rate-limits submissions before invoking the secret-protected Convex mutation. Do not prefix the secret with `NEXT_PUBLIC_`.
 
 ## 3. Exa
 

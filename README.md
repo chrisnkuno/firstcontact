@@ -6,9 +6,9 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-173d2d.svg)](LICENSE)
 [![Responsible outreach](https://img.shields.io/badge/outreach-human--approved-c8fa52.svg)](docs/COMPLIANCE.md)
 
-**[Explore the live public preview →](https://firstcontact-tau.vercel.app)**
+**[Join FirstContact →](https://firstcontact-tau.vercel.app/signup)**
 
-Try the [founder control center](https://firstcontact-tau.vercel.app/workspace) or browse the [VC catalogue](https://firstcontact-tau.vercel.app/catalogue). All public organizations and pipeline activity are clearly labeled fictional preview data; no form or interest submission is persisted.
+Start with the short signup questionnaire, try the [founder control center](https://firstcontact-tau.vercel.app/workspace), or browse the [VC catalogue](https://firstcontact-tau.vercel.app/catalogue). Signup interest is persisted privately; all public organizations and pipeline activity remain clearly labeled fictional preview data.
 
 FirstContact gives startups and institutions control over a context-rich fundraising pipeline, while giving investors a curated way to discover opportunities beyond their usual networks. Organizations decide what becomes public, what can enter an outreach draft, and what gets sent. Investors see approved context, strengths, open questions, traction, and capital needs before requesting an introduction.
 
@@ -17,7 +17,8 @@ It is deliberately **not** an autonomous cold-email bot. Research and drafting c
 ## What is implemented
 
 - A responsive public site explaining the model and principles.
-- Founder intake with explicit processing consent and a no-transmission preview mode.
+- A three-step, persisted signup for startups, institutions, investors, founders, operators, advisors, and researchers.
+- Deduplicated interest tracking with consent timestamps, participation goals, referral source, access status, and a private reference.
 - An operational workspace showing matches, fit evidence, risks, drafts, and event history.
 - Founder and institution controls for discovery scope, campaign state, delivery pace, message review, and catalogue visibility.
 - An investor-facing VC catalogue with geographic and organization-type filters, context-rich profiles, diligence prompts, and a privacy-preserving interest flow.
@@ -35,7 +36,7 @@ It is deliberately **not** an autonomous cold-email bot. Research and drafting c
 |---|---|---|
 | Public site and workspace | Fully available | Fully available |
 | VC catalogue | Fictional, labeled profiles and local interest confirmation | Founder-approved listings and authenticated investor interest |
-| Founder intake | Browser-only confirmation | Persist through Convex after auth wiring |
+| Signup questionnaire | Private Convex interest record | Same; server-secret protected and deduplicated by email |
 | Investor discovery | Labeled sample matches | Live Exa results with request IDs |
 | Introduction drafting | Non-fabricated placeholder | Structured GPT-5 nano output |
 | Email sending | Blocked | Still blocked until `OUTBOUND_EMAIL_ENABLED=true`, approval, and every policy gate passes |
@@ -66,11 +67,12 @@ bun run check
 ## Configure the live stack
 
 1. Create a Convex deployment with `bunx convex dev`; this generates `convex/_generated` and writes the public deployment URL.
-2. Add server-side Exa and OpenAI API keys to the Convex deployment or the Next.js runtime running provider actions.
-3. Verify a Resend sending domain, use a reply-capable sender, and configure a signed webhook at `/api/webhooks/resend`.
-4. Add authentication and map the identity subject to `memberships.userId` before accepting real founder data.
-5. Complete the deployment-specific Legitimate Interests Assessment and region matrix in [Responsible outreach](docs/COMPLIANCE.md).
-6. Set a high-entropy `OUTBOUND_API_TOKEN` for the temporary server boundary, then keep `OUTBOUND_EMAIL_ENABLED=false` through staging. Turn it on only after authentication, unsubscribe, bounce, complaint, rate-limit, and audit-event tests pass.
+2. Generate a high-entropy `SIGNUP_INGEST_SECRET`, set the same value in Convex and the Next.js server runtime, and set `CONVEX_URL`.
+3. Add server-side Exa and OpenAI API keys to the Convex deployment or the Next.js runtime running provider actions.
+4. Verify a Resend sending domain, use a reply-capable sender, and configure a signed webhook at `/api/webhooks/resend`.
+5. Add authentication and map the identity subject to `memberships.userId` before enabling private account workspaces.
+6. Complete the deployment-specific Legitimate Interests Assessment and region matrix in [Responsible outreach](docs/COMPLIANCE.md).
+7. Set a high-entropy `OUTBOUND_API_TOKEN` for the temporary server boundary, then keep `OUTBOUND_EMAIL_ENABLED=false` through staging. Turn it on only after authentication, unsubscribe, bounce, complaint, rate-limit, and audit-event tests pass.
 
 See [Deployment](docs/DEPLOYMENT.md) for the complete sequence.
 

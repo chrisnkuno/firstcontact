@@ -21,6 +21,12 @@ The App Router serves public pages, authenticated workspace surfaces, health rep
 
 `convex/schema.ts` models tenant state and operational history. Mutations enforce state transitions; actions call external providers; scheduled workflows handle retries and rate limits. Convex recommends recording intent in a mutation and scheduling network side effects, because actions themselves cannot be automatically retried safely.
 
+### Public signup boundary
+
+`POST /api/signups` validates startup, institution, and individual questionnaires against the shared Zod contract before calling `signups:submit`. The Convex mutation requires a server-only `SIGNUP_INGEST_SECRET`, deduplicates normalized email addresses, records consent time, and increments a submission counter when someone updates their context. Browser clients never receive the ingestion secret or write to the table directly.
+
+Signup creates an `interestSignups` record only. It does not create an organization, membership, catalogue listing, investor research job, campaign, or message. Those transitions remain explicit after authenticated access is introduced.
+
 ### Two-sided product boundary
 
 Organizations own profiles, campaigns, and catalogue listings. A listing is private until its specific public context, strengths, considerations, traction, and capital need are approved. Investor interest creates an `investorInterests` record; it does not reveal private founder contact data. The organization accepts or declines before any introduction is shared.
@@ -68,6 +74,7 @@ Resend is transport, not campaign state. Store the local message before sending,
 
 | Data | Purpose | Default retention proposal | Deletion behavior |
 |---|---|---:|---|
+| Interest signup | Access review and demand routing | 180 days without activity | Delete on request or after review expiry |
 | Founder profile | Matching and approved outreach | Active account + 30 days | Delete or de-identify on account request |
 | Public source excerpts | Match evidence | 180 days, then re-verify | Remove on source deletion or objection review |
 | Contact data | Approved B2B outreach | 180 days since verification | Delete unless suppression is needed |

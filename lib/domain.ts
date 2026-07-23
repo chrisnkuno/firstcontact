@@ -4,6 +4,18 @@ export const regions = ["Africa", "Latin America", "MENA", "South Asia", "Southe
 export const capitalRegions = ["US", "UK", "EU", "APAC"] as const;
 export const stages = ["pre-seed", "seed", "series-a", "series-b+", "growth", "institutional"] as const;
 export const organizationTypes = ["startup", "institution"] as const;
+export const signupTypes = ["startup", "institution", "individual"] as const;
+export const individualRoles = ["founder", "investor", "operator", "advisor", "researcher", "other"] as const;
+export const participationGoals = [
+  "raise-capital",
+  "find-investors",
+  "join-catalogue",
+  "invest",
+  "mentor",
+  "partner",
+  "research",
+] as const;
+export const referralSources = ["search", "social", "community", "referral", "event", "other"] as const;
 
 export const startupProfileSchema = z.object({
   name: z.string().trim().min(2).max(100),
@@ -23,6 +35,52 @@ export const startupProfileSchema = z.object({
 });
 
 export type StartupProfile = z.infer<typeof startupProfileSchema>;
+
+const optionalUrl = z.union([z.literal(""), z.string().url()]).optional().transform((value) => value || undefined);
+
+export const interestSignupSchema = z.object({
+  accountType: z.enum(signupTypes),
+  name: z.string().trim().min(2).max(100),
+  email: z.string().trim().toLowerCase().email().max(254),
+  location: z.string().trim().min(2).max(120),
+  organizationName: z.string().trim().max(120).optional(),
+  website: optionalUrl,
+  individualRole: z.enum(individualRoles).optional(),
+  stage: z.enum(stages).optional(),
+  summary: z.string().trim().min(20).max(700),
+  context: z.string().trim().min(20).max(1200),
+  goals: z.array(z.enum(participationGoals)).min(1).max(5),
+  targetRegions: z.array(z.enum(capitalRegions)).max(4),
+  referralSource: z.enum(referralSources),
+  consentToProcess: z.literal(true),
+  productUpdates: z.boolean(),
+}).superRefine((value, context) => {
+  if (value.accountType === "individual" && !value.individualRole) {
+    context.addIssue({
+      code: "custom",
+      path: ["individualRole"],
+      message: "Choose the role that best describes you",
+    });
+  }
+
+  if (value.accountType !== "individual" && !value.organizationName?.trim()) {
+    context.addIssue({
+      code: "custom",
+      path: ["organizationName"],
+      message: "Organization name is required",
+    });
+  }
+
+  if (value.accountType === "startup" && !value.stage) {
+    context.addIssue({
+      code: "custom",
+      path: ["stage"],
+      message: "Choose your current stage",
+    });
+  }
+});
+
+export type InterestSignup = z.infer<typeof interestSignupSchema>;
 
 export const investorSchema = z.object({
   id: z.string(),

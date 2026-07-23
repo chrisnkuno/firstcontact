@@ -2,6 +2,28 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  interestSignups: defineTable({
+    accountType: v.union(v.literal("startup"), v.literal("institution"), v.literal("individual")),
+    name: v.string(),
+    email: v.string(),
+    location: v.string(),
+    organizationName: v.optional(v.string()),
+    website: v.optional(v.string()),
+    individualRole: v.optional(v.union(v.literal("founder"), v.literal("investor"), v.literal("operator"), v.literal("advisor"), v.literal("researcher"), v.literal("other"))),
+    stage: v.optional(v.union(v.literal("pre-seed"), v.literal("seed"), v.literal("series-a"), v.literal("series-b+"), v.literal("growth"), v.literal("institutional"))),
+    summary: v.string(),
+    context: v.string(),
+    goals: v.array(v.union(v.literal("raise-capital"), v.literal("find-investors"), v.literal("join-catalogue"), v.literal("invest"), v.literal("mentor"), v.literal("partner"), v.literal("research"))),
+    targetRegions: v.array(v.union(v.literal("US"), v.literal("UK"), v.literal("EU"), v.literal("APAC"))),
+    referralSource: v.union(v.literal("search"), v.literal("social"), v.literal("community"), v.literal("referral"), v.literal("event"), v.literal("other")),
+    productUpdates: v.boolean(),
+    status: v.union(v.literal("new"), v.literal("reviewing"), v.literal("invited"), v.literal("active"), v.literal("declined")),
+    source: v.string(),
+    consentRecordedAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    submissionCount: v.number(),
+  }).index("by_email", ["email"]).index("by_status_time", ["status", "createdAt"]),
   organizations: defineTable({ name: v.string(), slug: v.string(), createdBy: v.string(), createdAt: v.number() }).index("by_slug", ["slug"]),
   memberships: defineTable({ organizationId: v.id("organizations"), userId: v.string(), role: v.union(v.literal("owner"), v.literal("reviewer"), v.literal("member")) }).index("by_org_user", ["organizationId", "userId"]),
   startupProfiles: defineTable({ organizationId: v.id("organizations"), organizationType: v.union(v.literal("startup"), v.literal("institution")), name: v.string(), website: v.string(), location: v.string(), region: v.string(), stage: v.string(), sectors: v.array(v.string()), raiseAmountUsd: v.number(), oneLiner: v.string(), traction: v.string(), impact: v.string(), founderContext: v.string(), targetRegions: v.array(v.string()), status: v.union(v.literal("draft"), v.literal("active"), v.literal("archived")), consentRecordedAt: v.number(), updatedAt: v.number() }).index("by_organization", ["organizationId"]),

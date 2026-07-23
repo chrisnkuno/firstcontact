@@ -20,7 +20,7 @@ export default function Home() {
           <h1>Capital should<br />travel <em>further.</em></h1>
           <p>FirstContact is open infrastructure for founders and institutions outside capital-dense ecosystems to find, understand, and thoughtfully approach aligned investors worldwide.</p>
           <div className="hero-actions">
-            <Link className="button button-accent" href="/apply">Build your pipeline <ArrowRight size={18} /></Link>
+            <Link className="button button-accent" href="/signup">Join FirstContact <ArrowRight size={18} /></Link>
             <Link className="text-link" href="/open-source"><Code2 size={17} /> Explore the source</Link>
           </div>
           <div className="trust-line"><span><Check size={13} /> Human-approved outreach</span><span><Check size={13} /> Source-backed matches</span><span><Check size={13} /> No contact-data resale</span></div>
@@ -70,9 +70,9 @@ export default function Home() {
 
       <section className="cta section-shell">
         <span>MAKE THE FIRST CONTACT</span><h2>Your geography should be context.<br /><em>Not a constraint.</em></h2>
-        <div><Link className="button button-light" href="/apply">Create an organization profile <ArrowRight size={18} /></Link><Link className="button button-outline" href="/catalogue">Browse the catalogue</Link></div>
+        <div><Link className="button button-light" href="/signup">Create your profile <ArrowRight size={18} /></Link><Link className="button button-outline" href="/catalogue">Browse the catalogue</Link></div>
       </section>
-      <footer className="footer section-shell"><div><strong>FIRSTCONTACT</strong><p>Open infrastructure for capital access.<br />Built with care, from everywhere.</p></div><div><span>PRODUCT</span><Link href="/workspace">Founder workspace</Link><Link href="/catalogue">VC catalogue</Link><Link href="/apply">Organization intake</Link></div><div><span>PROJECT + POLICIES</span><a href="https://github.com/chrisnkuno/firstcontact" target="_blank" rel="noreferrer">GitHub ↗</a><Link href="/responsible-outreach">Responsible outreach</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/security">Security</Link></div><p className="license">MIT · FirstContact contributors</p></footer>
+      <footer className="footer section-shell"><div><strong>FIRSTCONTACT</strong><p>Open infrastructure for capital access.<br />Built with care, from everywhere.</p></div><div><span>PRODUCT</span><Link href="/workspace">Founder workspace</Link><Link href="/catalogue">VC catalogue</Link><Link href="/signup">Join FirstContact</Link></div><div><span>PROJECT + POLICIES</span><a href="https://github.com/chrisnkuno/firstcontact" target="_blank" rel="noreferrer">GitHub ↗</a><Link href="/responsible-outreach">Responsible outreach</Link><Link href="/privacy">Privacy</Link><Link href="/terms">Terms</Link><Link href="/security">Security</Link></div><p className="license">MIT · FirstContact contributors</p></footer>
     </main>
   );
 }

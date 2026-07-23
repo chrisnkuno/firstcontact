@@ -30,3 +30,62 @@
 .signal-status{bottom:5%;background:rgba(242,240,233,.9)}
 @media(max-width:1000px){.signal{width:85vw;top:380px}}
 @media(max-width:680px){.signal{top:445px;width:110vw;right:-14vw}.nodes text,.origin-label text{font-size:12px}}
+
+/* Signup onboarding */
+.signup-shell{grid-template-columns:minmax(290px,.72fr) minmax(0,1.28fr);align-items:start}
+.signup-shell>aside{position:sticky;top:40px}
+.intake-facts{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line);margin-top:42px}
+.intake-facts span{min-height:76px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:13px 10px;display:flex;flex-direction:column;justify-content:space-between;font:500 8px var(--font-mono);letter-spacing:.08em;color:#768179}
+.intake-facts b{font-size:11px;font-weight:500;color:var(--ink)}
+.signup-form{min-height:660px;padding:0;gap:0;scroll-margin-top:24px}
+.signup-progress{height:72px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:repeat(3,1fr)}
+.signup-progress>span{padding:0 17px;border-right:1px solid var(--line);display:flex;align-items:center;gap:9px;font:500 8px var(--font-mono);letter-spacing:.09em;color:#99a19c}
+.signup-progress>span:last-child{border-right:0}
+.signup-progress i{width:25px;height:25px;border:1px solid #d2d6d1;border-radius:50%;display:grid;place-items:center;font-style:normal}
+.signup-progress .active{color:var(--ink)}
+.signup-progress .active i{border-color:#536b5e;background:#edf6d7}
+.signup-step{padding:clamp(28px,4vw,48px);animation:signup-in .28s ease}
+@keyframes signup-in{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+.form-heading{margin-bottom:35px}
+.form-heading>span{font:500 8px var(--font-mono);letter-spacing:.13em;color:#76827b}
+.form-heading h2{font-size:clamp(31px,3.2vw,45px);line-height:1;letter-spacing:-.045em;font-weight:500;margin:18px 0 12px}
+.form-heading p{font-size:12px;color:#748078;line-height:1.6;margin:0}
+.account-type-grid{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line);margin-bottom:28px}
+.account-type-grid label{min-height:168px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:17px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;transition:background .2s}
+.account-type-grid label:hover,.account-type-grid label.selected{background:#eef5dc}
+.account-type-grid input,.choice-grid input,.region-choice-grid input{position:absolute;opacity:0;pointer-events:none}
+.account-type-grid svg{color:#53675c}
+.account-type-grid b{font-size:13px;font-weight:500;margin-top:auto}
+.account-type-grid small{font:400 10px/1.5 var(--font-sans);color:#68746d}
+.signup-form label>small{align-self:flex-end;font:400 8px var(--font-mono);letter-spacing:.04em;color:#89928d}
+.signup-form textarea{resize:vertical}
+.signup-form input,.signup-form select,.signup-form textarea{border-radius:0}
+.form-actions{display:flex;align-items:center;gap:10px;margin-top:30px}
+.form-actions>small{font:400 8px var(--font-mono);color:#7c8681;margin-left:auto}
+.button-quiet{background:transparent;border:1px solid var(--line);font-weight:500}
+.choice-fieldset{border:0;padding:0;margin:0 0 27px}
+.choice-fieldset legend{font:500 10px var(--font-mono);letter-spacing:.05em;margin-bottom:12px}
+.choice-grid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.choice-grid label{min-height:52px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:0 13px;display:flex;flex-direction:row;align-items:center;justify-content:space-between;cursor:pointer;font:500 10px var(--font-sans);letter-spacing:0}
+.choice-grid label svg{opacity:0}
+.choice-grid label.selected{background:#eef5dc}
+.choice-grid label.selected svg{opacity:1}
+.region-choice-grid{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.region-choice-grid label{height:48px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);display:grid;place-items:center;cursor:pointer;font:500 9px var(--font-mono)}
+.region-choice-grid label.selected{background:var(--dark);color:white}
+.consent-stack{border-top:1px solid var(--line);margin-top:28px}
+.consent-stack .consent{padding:14px 0;border-bottom:1px solid var(--line);font-size:10px!important}
+.consent-stack input{flex:0 0 auto}
+.signup-honeypot{position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;overflow:hidden!important}
+.form-error{margin-top:20px;padding:13px;border-left:3px solid #b85f42;background:#f7e9e3;font-size:11px;line-height:1.5}
+.submission-note{font:400 8px var(--font-mono);color:#7b8580;margin:18px 0 0}
+.spin{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.signup-success>span{display:block;margin-top:28px;font:500 8px var(--font-mono);letter-spacing:.12em;color:#68756e}
+.signup-success h2{font-size:42px;letter-spacing:-.045em;font-weight:500}
+.signup-success small{display:block;border-top:1px solid var(--line);padding-top:18px;margin-top:35px;font:400 9px var(--font-mono);color:#748078}
+.signup-success small b{font-weight:500;color:var(--ink)}
+.success-next{display:flex;align-items:center;gap:22px;margin-top:28px}
+.success-next .button{margin:0}
+@media(max-width:1000px){.signup-shell{grid-template-columns:1fr}.signup-shell>aside{position:static}.signup-shell>aside>p{max-width:650px}.intake-facts{max-width:620px}.signup-form{margin-top:15px}}
+@media(max-width:680px){.signup-shell{padding:44px 14px 70px}.signup-shell>aside{padding:0 8px}.signup-shell h1{font-size:46px}.intake-facts{grid-template-columns:repeat(3,1fr);margin-top:30px}.privacy-note{margin-top:28px}.signup-progress>span{padding:0 8px;font-size:7px}.signup-progress i{width:22px;height:22px}.signup-step{padding:27px 18px 34px}.account-type-grid{grid-template-columns:1fr}.account-type-grid label{min-height:116px}.choice-grid{grid-template-columns:1fr}.region-choice-grid{grid-template-columns:1fr 1fr}.form-actions{flex-wrap:wrap}.form-actions .button-accent{margin-left:auto}.success-next{align-items:flex-start;flex-direction:column}.signup-success{padding:30px 22px}.signup-success h2{font-size:35px}}
