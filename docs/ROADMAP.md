@@ -6,6 +6,9 @@
 - Transparent deterministic matcher and outbound safety policy.
 - Multi-tenant Convex schema, webhook verification, tests, and operating docs.
 - Founder/institution control center and consented investor-catalogue preview.
+- Live, non-PII homepage signup counter read directly from Convex (never fabricated).
+- Real, persisted catalogue interest signals (email + note) instead of local-only UI state.
+- Best-effort automated UI translation (`/api/translate`, OpenAI-backed) across the homepage, catalogue, and signup flow.
 
 ## v0.2 — Secure private beta
 
@@ -21,7 +24,7 @@
 - Optional warm-introduction graph with explicit consent.
 - Community-maintained investor thesis corrections.
 - Institution/grant and development-finance instruments.
-- Multilingual founder context and reviewer-controlled translation.
+- Reviewer-controlled, professionally checked translation for private founder context and outbound drafts (v0.1's translation layer only covers public UI copy).
 - Portable campaign export and deletion tooling.
 
 ## Non-goals

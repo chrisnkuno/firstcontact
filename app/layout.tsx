@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/space-grotesk";
 import "./globals.css";
+import { TranslationProvider } from "@/components/translation-provider";
 
 export const metadata: Metadata = {
   title: { default: "FirstContact — Capital should travel further", template: "%s · FirstContact" },
@@ -16,5 +17,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: "#f2f0e9", colorScheme: "light" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><a className="skip-link" href="#main-content">Skip to content</a>{children}</body></html>;
+  return (
+    <html lang="en">
+      <body>
+        <a className="skip-link" href="#main-content">Skip to content</a>
+        <TranslationProvider>{children}</TranslationProvider>
+      </body>
+    </html>
+  );
 }

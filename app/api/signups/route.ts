@@ -12,9 +12,35 @@ export const dynamic = "force-dynamic";
 
 const requestSchema = interestSignupSchema.and(
   z.object({
-    company: z.string().max(0).optional(),
+    // Honeypot: must stay empty. Trimmed so that stray whitespace (e.g. from
+    // an errant autofill pass) doesn't false-positive a real submission.
+    company: z.string().trim().max(0).optional(),
   }),
 );
+
+const FRIENDLY_FIELD_LABELS: Record<string, string> = {
+  accountType: "how you'll use FirstContact",
+  name: "your name",
+  email: "your email",
+  location: "your location",
+  organizationName: "your organization name",
+  individualRole: "your role",
+  stage: "your current stage",
+  website: "your website link (include https://)",
+  summary: "the summary of what you're building or looking for",
+  context: "the context field",
+  goals: "what you'd like to do",
+  targetRegions: "your capital regions of interest",
+  referralSource: "how you found FirstContact",
+  consentToProcess: "the consent checkbox",
+};
+
+function friendlyValidationMessage(fieldErrors: Record<string, string[] | undefined>) {
+  const fields = Object.keys(fieldErrors).filter((key) => fieldErrors[key]?.length);
+  if (!fields.length) return "Please review the highlighted information.";
+  const labels = fields.slice(0, 3).map((key) => FRIENDLY_FIELD_LABELS[key] ?? key);
+  return `Please check ${labels.join(", ")} and try again.`;
+}
 
 type SignupMutationArgs = Omit<InterestSignup, "consentToProcess"> & {
   ingestSecret: string;
@@ -87,11 +113,12 @@ export async function POST(request: NextRequest) {
 
   const parsed = requestSchema.safeParse(body);
   if (!parsed.success) {
+    const fieldErrors = z.flattenError(parsed.error).fieldErrors;
     return NextResponse.json(
       {
         ok: false,
-        message: "Please review the highlighted information.",
-        fields: z.flattenError(parsed.error).fieldErrors,
+        message: friendlyValidationMessage(fieldErrors),
+        fields: fieldErrors,
       },
       { status: 400 },
     );

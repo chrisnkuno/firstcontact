@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 const accountType = v.union(
@@ -148,5 +148,41 @@ export const removeSmokeTest = mutation({
 
     await ctx.db.delete(record._id);
     return { deleted: true };
+  },
+});
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Aggregate, non-PII counts only. Never return names, emails, locations,
+// or free-text fields here — this backs a public "real data" display.
+export const publicStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const signups = await ctx.db.query("interestSignups").collect();
+    const now = Date.now();
+
+    const byAccountType = { startup: 0, institution: 0, individual: 0 };
+    const byRegion = { US: 0, UK: 0, EU: 0, APAC: 0 };
+    let last7Days = 0;
+    let latestCreatedAt: number | null = null;
+
+    for (const signup of signups) {
+      byAccountType[signup.accountType] += 1;
+      for (const region of signup.targetRegions) {
+        byRegion[region] += 1;
+      }
+      if (now - signup.createdAt <= WEEK_MS) last7Days += 1;
+      if (latestCreatedAt === null || signup.createdAt > latestCreatedAt) {
+        latestCreatedAt = signup.createdAt;
+      }
+    }
+
+    return {
+      total: signups.length,
+      byAccountType,
+      byRegion,
+      last7Days,
+      latestCreatedAt,
+    };
   },
 });

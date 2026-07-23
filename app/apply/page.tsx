@@ -3,6 +3,8 @@ import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { ApplyForm } from "@/components/apply-form";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { T } from "@/components/translation-provider";
 
 export const metadata: Metadata = {
   title: "Join",
@@ -15,39 +17,39 @@ export default function ApplyPage() {
     <main className="application-page" id="main-content">
       <header className="simple-header">
         <Logo />
-        <Link href="/">
-          <ArrowLeft size={16} /> Back to overview
-        </Link>
+        <div className="simple-header-actions">
+          <LanguageSwitcher />
+          <Link href="/">
+            <ArrowLeft size={16} /> <T>Back to overview</T>
+          </Link>
+        </div>
       </header>
       <section className="application-shell signup-shell">
         <aside>
           <span>FIRSTCONTACT SIGNUP / 01</span>
           <h1>
-            Start with
+            <T>Start with</T>
             <br />
-            useful context.
+            <T>useful context.</T>
           </h1>
           <p>
-            Join as a startup, institution, or individual. A short questionnaire
-            helps us understand what you need and build a more useful capital
-            access network.
+            <T>Join as a startup, institution, or individual. A short questionnaire helps us understand what you need and build a more useful capital access network.</T>
           </p>
           <div className="intake-facts">
             <span>
-              <b>03</b> short steps
+              <b>03</b> <T>short steps</T>
             </span>
             <span>
-              <b>PRIVATE</b> by default
+              <b>PRIVATE</b> <T>by default</T>
             </span>
             <span>
-              <b>HUMAN</b> reviewed
+              <b>HUMAN</b> <T>reviewed</T>
             </span>
           </div>
           <div className="privacy-note">
             <b>YOUR DATA, YOUR CONTROL</b>
             <p>
-              Signup records interest only. Catalogue visibility, investor
-              matching, and outreach each require a separate decision.
+              <T>Signup records interest only. Catalogue visibility, investor matching, and outreach each require a separate decision.</T>
             </p>
           </div>
         </aside>

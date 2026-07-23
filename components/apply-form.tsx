@@ -12,6 +12,7 @@ import {
   Landmark,
   LoaderCircle,
 } from "lucide-react";
+import { T, useTranslation } from "@/components/translation-provider";
 
 const accountTypes = [
   {
@@ -43,6 +44,23 @@ const goals = [
   ["partner", "Explore partnerships"],
   ["research", "Follow the ecosystem"],
 ] as const;
+
+const fieldToStep: Record<string, 1 | 2 | 3> = {
+  accountType: 1,
+  name: 1,
+  email: 1,
+  location: 1,
+  organizationName: 1,
+  individualRole: 1,
+  website: 2,
+  stage: 2,
+  summary: 2,
+  context: 2,
+  goals: 3,
+  targetRegions: 3,
+  referralSource: 3,
+  consentToProcess: 3,
+};
 
 type FormState = {
   accountType: "startup" | "institution" | "individual";
@@ -83,6 +101,7 @@ const initialState: FormState = {
 };
 
 export function ApplyForm() {
+  const { translate: t } = useTranslation();
   const formRef = useRef<HTMLFormElement>(null);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<FormState>(initialState);
@@ -108,16 +127,62 @@ export function ApplyForm() {
     );
   }
 
+  // Mirrors lib/domain.ts's trimmed-length rules so a field that merely looks
+  // long enough on screen (e.g. padded with trailing spaces) is caught here,
+  // in context, instead of failing silently after the network round trip.
+  function validateStep(current: number): string | null {
+    if (current === 1) {
+      if (form.name.trim().length < 2) return "Add your name.";
+      if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) return "Add a valid email address.";
+      if (form.location.trim().length < 2) return "Add your location.";
+      if (form.accountType === "individual" && !form.individualRole) {
+        return "Choose the role that best describes you.";
+      }
+      if (form.accountType !== "individual" && !form.organizationName.trim()) {
+        return `Add your ${form.accountType === "startup" ? "company" : "institution"} name.`;
+      }
+    }
+
+    if (current === 2) {
+      if (form.website && !/^https?:\/\//i.test(form.website.trim())) {
+        return "Website links need to start with https://.";
+      }
+      if (form.summary.trim().length < 20) {
+        return "Add a little more detail to the summary (20 characters minimum).";
+      }
+      if (form.context.trim().length < 20) {
+        return "Add a little more detail to the context field (20 characters minimum).";
+      }
+    }
+
+    if (current === 3) {
+      if (!form.goals.length) {
+        return "Choose at least one way you would like to use FirstContact.";
+      }
+      if (!form.consentToProcess) {
+        return "Please confirm consent to store your signup information.";
+      }
+    }
+
+    return null;
+  }
+
   function continueTo(nextStep: number) {
-    if (!formRef.current?.reportValidity()) return;
+    const message = validateStep(step);
+    if (message) {
+      setError(message);
+      return;
+    }
+    setError("");
     setStep(nextStep);
     formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!form.goals.length) {
-      setError("Choose at least one way you would like to use FirstContact.");
+    const message = validateStep(3);
+    if (message) {
+      setError(message);
       return;
     }
 
@@ -147,9 +212,20 @@ export function ApplyForm() {
         message?: string;
         reference?: string;
         created?: boolean;
+        fields?: Record<string, string[] | undefined>;
       };
 
       if (!response.ok || !payload.ok || !payload.reference) {
+        const erroredFields = Object.keys(payload.fields ?? {}).filter(
+          (key) => payload.fields?.[key]?.length,
+        );
+        if (erroredFields.length) {
+          const earliestStep = erroredFields.reduce(
+            (min, key) => Math.min(min, fieldToStep[key] ?? 3),
+            3,
+          );
+          setStep(earliestStep);
+        }
         throw new Error(payload.message || "Your signup could not be saved.");
       }
 
@@ -175,24 +251,26 @@ export function ApplyForm() {
         <CheckCircle2 size={34} />
         <span>SIGNUP RECORDED / {result.reference}</span>
         <h2>
-          {result.created ? "You are on the map." : "Your context is updated."}
+          <T>{result.created ? "You are on the map." : "Your context is updated."}</T>
         </h2>
         <p>
-          {individual
-            ? "We saved your interests and how you would like to participate. As access opens, we will use this context to place you in the right FirstContact flow."
-            : "We saved your profile and capital-access context. You remain in control of what becomes public and no investor outreach will be sent without review."}
+          <T>
+            {individual
+              ? "We saved your interests and how you would like to participate. As access opens, we will use this context to place you in the right FirstContact flow."
+              : "We saved your profile and capital-access context. You remain in control of what becomes public and no investor outreach will be sent without review."}
+          </T>
         </p>
         <div className="success-next">
           <Link className="button button-dark" href={individual ? "/catalogue" : "/workspace"}>
-            {individual ? "Explore the catalogue" : "Explore the workspace"}
+            <T>{individual ? "Explore the catalogue" : "Explore the workspace"}</T>
             <ArrowRight size={17} />
           </Link>
           <Link className="text-link" href="/">
-            Return home
+            <T>Return home</T>
           </Link>
         </div>
         <small>
-          Keep reference <b>{result.reference}</b> for future access questions.
+          <T>Keep reference</T> <b>{result.reference}</b> <T>for future access questions.</T>
         </small>
       </div>
     );
@@ -209,12 +287,18 @@ export function ApplyForm() {
         ))}
       </div>
 
+      {error && (
+        <div className="form-error" role="alert">
+          <T>{error}</T>
+        </div>
+      )}
+
       {step === 1 && (
         <section className="signup-step">
           <div className="form-heading">
             <span>STEP 01 / THREE MINUTES</span>
-            <h2>How will you use FirstContact?</h2>
-            <p>Choose the closest fit. You can update this context later.</p>
+            <h2><T>How will you use FirstContact?</T></h2>
+            <p><T>Choose the closest fit. You can update this context later.</T></p>
           </div>
 
           <div className="account-type-grid">
@@ -231,26 +315,26 @@ export function ApplyForm() {
                   onChange={() => update("accountType", value)}
                 />
                 <Icon size={20} />
-                <b>{label}</b>
-                <small>{description}</small>
+                <b><T>{label}</T></b>
+                <small><T>{description}</T></small>
               </label>
             ))}
           </div>
 
           <div className="form-row">
             <label>
-              Your name
+              <T>Your name</T>
               <input
                 required
                 minLength={2}
                 value={form.name}
                 onChange={(event) => update("name", event.target.value)}
                 autoComplete="name"
-                placeholder="Full name"
+                placeholder={t("Full name")}
               />
             </label>
             <label>
-              Work email
+              <T>Work email</T>
               <input
                 required
                 type="email"
@@ -261,22 +345,25 @@ export function ApplyForm() {
               />
             </label>
           </div>
+          <p className="field-hint">
+            <T>Why we ask: your email identifies your signup so a repeat submission updates your existing record instead of creating a duplicate. It is never sold or shared.</T>
+          </p>
 
           <div className="form-row">
             <label>
-              Location
+              <T>Location</T>
               <input
                 required
                 minLength={2}
                 value={form.location}
                 onChange={(event) => update("location", event.target.value)}
                 autoComplete="country-name"
-                placeholder="City, country"
+                placeholder={t("City, country")}
               />
             </label>
             {form.accountType === "individual" ? (
               <label>
-                Your primary role
+                <T>Your primary role</T>
                 <select
                   required
                   value={form.individualRole}
@@ -284,18 +371,18 @@ export function ApplyForm() {
                     update("individualRole", event.target.value)
                   }
                 >
-                  <option value="">Choose one</option>
-                  <option value="founder">Founder</option>
-                  <option value="investor">Investor</option>
-                  <option value="operator">Operator</option>
-                  <option value="advisor">Advisor / mentor</option>
-                  <option value="researcher">Researcher</option>
-                  <option value="other">Other</option>
+                  <option value="">{t("Choose one")}</option>
+                  <option value="founder">{t("Founder")}</option>
+                  <option value="investor">{t("Investor")}</option>
+                  <option value="operator">{t("Operator")}</option>
+                  <option value="advisor">{t("Advisor / mentor")}</option>
+                  <option value="researcher">{t("Researcher")}</option>
+                  <option value="other">{t("Other")}</option>
                 </select>
               </label>
             ) : (
               <label>
-                Organization name
+                <T>Organization name</T>
                 <input
                   required
                   minLength={2}
@@ -304,11 +391,11 @@ export function ApplyForm() {
                     update("organizationName", event.target.value)
                   }
                   autoComplete="organization"
-                  placeholder={
+                  placeholder={t(
                     form.accountType === "startup"
                       ? "Company name"
-                      : "Institution name"
-                  }
+                      : "Institution name",
+                  )}
                 />
               </label>
             )}
@@ -320,9 +407,9 @@ export function ApplyForm() {
               type="button"
               onClick={() => continueTo(2)}
             >
-              Continue <ArrowRight size={17} />
+              <T>Continue</T> <ArrowRight size={17} />
             </button>
-            <small>1 of 3 · no pitch deck needed</small>
+            <small><T>1 of 3 · no pitch deck needed</T></small>
           </div>
         </section>
       )}
@@ -331,13 +418,13 @@ export function ApplyForm() {
         <section className="signup-step">
           <div className="form-heading">
             <span>STEP 02 / YOUR CONTEXT</span>
-            <h2>What should the network understand?</h2>
-            <p>Plain language is useful. Share only what you are comfortable processing.</p>
+            <h2><T>What should the network understand?</T></h2>
+            <p><T>Plain language is useful. Share only what you are comfortable processing.</T></p>
           </div>
 
           <div className="form-row">
             <label>
-              Website <small>OPTIONAL</small>
+              <T>Website</T> <small>OPTIONAL</small>
               <input
                 type="url"
                 value={form.website}
@@ -348,37 +435,39 @@ export function ApplyForm() {
             </label>
             {form.accountType === "startup" ? (
               <label>
-                Current stage
+                <T>Current stage</T>
                 <select
                   value={form.stage}
                   onChange={(event) => update("stage", event.target.value)}
                 >
-                  <option value="pre-seed">Pre-seed</option>
-                  <option value="seed">Seed</option>
-                  <option value="series-a">Series A</option>
-                  <option value="series-b+">Series B+</option>
-                  <option value="growth">Growth</option>
+                  <option value="pre-seed">{t("Pre-seed")}</option>
+                  <option value="seed">{t("Seed")}</option>
+                  <option value="series-a">{t("Series A")}</option>
+                  <option value="series-b+">{t("Series B+")}</option>
+                  <option value="growth">{t("Growth")}</option>
                 </select>
               </label>
             ) : (
               <label>
-                Organization <small>OPTIONAL</small>
+                <T>Organization</T> <small>OPTIONAL</small>
                 <input
                   value={form.organizationName}
                   onChange={(event) =>
                     update("organizationName", event.target.value)
                   }
                   autoComplete="organization"
-                  placeholder="Where you work or participate"
+                  placeholder={t("Where you work or participate")}
                 />
               </label>
             )}
           </div>
 
           <label>
-            {form.accountType === "individual"
-              ? "What are you working on or looking for?"
-              : "What are you building or enabling?"}
+            <T>
+              {form.accountType === "individual"
+                ? "What are you working on or looking for?"
+                : "What are you building or enabling?"}
+            </T>
             <textarea
               required
               minLength={20}
@@ -386,13 +475,13 @@ export function ApplyForm() {
               rows={4}
               value={form.summary}
               onChange={(event) => update("summary", event.target.value)}
-              placeholder="A short, concrete description in your own words."
+              placeholder={t("A short, concrete description in your own words.")}
             />
             <small>{form.summary.length}/700</small>
           </label>
 
           <label>
-            What context would someone outside your ecosystem miss?
+            <T>What context would someone outside your ecosystem miss?</T>
             <textarea
               required
               minLength={20}
@@ -400,7 +489,7 @@ export function ApplyForm() {
               rows={5}
               value={form.context}
               onChange={(event) => update("context", event.target.value)}
-              placeholder="Local market realities, expertise, constraints, access, or opportunities that change the picture."
+              placeholder={t("Local market realities, expertise, constraints, access, or opportunities that change the picture.")}
             />
             <small>{form.context.length}/1200</small>
           </label>
@@ -411,14 +500,14 @@ export function ApplyForm() {
               type="button"
               onClick={() => setStep(1)}
             >
-              <ArrowLeft size={16} /> Back
+              <ArrowLeft size={16} /> <T>Back</T>
             </button>
             <button
               className="button button-accent"
               type="button"
               onClick={() => continueTo(3)}
             >
-              Continue <ArrowRight size={17} />
+              <T>Continue</T> <ArrowRight size={17} />
             </button>
           </div>
         </section>
@@ -428,12 +517,12 @@ export function ApplyForm() {
         <section className="signup-step">
           <div className="form-heading">
             <span>STEP 03 / YOUR INTEREST</span>
-            <h2>What would make this useful?</h2>
-            <p>Your selections help us prioritise access and route relevant opportunities.</p>
+            <h2><T>What would make this useful?</T></h2>
+            <p><T>Your selections help us prioritise access and route relevant opportunities.</T></p>
           </div>
 
           <fieldset className="choice-fieldset">
-            <legend>What would you like to do?</legend>
+            <legend><T>What would you like to do?</T></legend>
             <div className="choice-grid">
               {goals.map(([value, label]) => (
                 <label
@@ -445,7 +534,7 @@ export function ApplyForm() {
                     checked={form.goals.includes(value)}
                     onChange={() => toggleList("goals", value)}
                   />
-                  <span>{label}</span>
+                  <span><T>{label}</T></span>
                   <Check size={14} />
                 </label>
               ))}
@@ -453,7 +542,7 @@ export function ApplyForm() {
           </fieldset>
 
           <fieldset className="choice-fieldset">
-            <legend>Capital regions of interest</legend>
+            <legend><T>Capital regions of interest</T></legend>
             <div className="region-choice-grid">
               {["US", "UK", "EU", "APAC"].map((region) => (
                 <label
@@ -474,19 +563,19 @@ export function ApplyForm() {
           </fieldset>
 
           <label>
-            How did you find FirstContact?
+            <T>How did you find FirstContact?</T>
             <select
               value={form.referralSource}
               onChange={(event) =>
                 update("referralSource", event.target.value)
               }
             >
-              <option value="search">Search</option>
-              <option value="social">Social media</option>
-              <option value="community">Founder / investor community</option>
-              <option value="referral">Personal referral</option>
-              <option value="event">Event</option>
-              <option value="other">Other</option>
+              <option value="search">{t("Search")}</option>
+              <option value="social">{t("Social media")}</option>
+              <option value="community">{t("Founder / investor community")}</option>
+              <option value="referral">{t("Personal referral")}</option>
+              <option value="event">{t("Event")}</option>
+              <option value="other">{t("Other")}</option>
             </select>
           </label>
 
@@ -501,8 +590,7 @@ export function ApplyForm() {
                 }
               />
               <span>
-                I consent to FirstContact storing this information to manage my
-                signup and relevant participation.
+                <T>I consent to FirstContact storing this information to manage my signup and relevant participation.</T>
               </span>
             </label>
             <label className="consent">
@@ -513,25 +601,31 @@ export function ApplyForm() {
                   update("productUpdates", event.target.checked)
                 }
               />
-              <span>Send me occasional product and access updates.</span>
+              <span><T>Send me occasional product and access updates.</T></span>
             </label>
           </div>
 
+          <div className="process-steps">
+            <span>WHAT HAPPENS AFTER YOU SUBMIT</span>
+            <ol>
+              <li><b>01</b> <T>We save this as a private interest record, matched to your email so repeat visits update it rather than duplicate it.</T></li>
+              <li><b>02</b> <T>A person reviews it. Nothing here creates a live catalogue listing, investor match, or outbound message on its own.</T></li>
+              <li><b>03</b> <T>{form.productUpdates ? "Since you opted in, we'll email you as relevant access opens." : "We'll hold your context until access opens for your kind of profile."}</T></li>
+            </ol>
+          </div>
+
           <label className="signup-honeypot" aria-hidden="true">
-            Company
+            Leave this field empty
             <input
               tabIndex={-1}
               autoComplete="off"
+              name="a11y-check"
+              data-lpignore="true"
+              data-1p-ignore="true"
               value={form.company}
               onChange={(event) => update("company", event.target.value)}
             />
           </label>
-
-          {error && (
-            <div className="form-error" role="alert">
-              {error}
-            </div>
-          )}
 
           <div className="form-actions">
             <button
@@ -539,7 +633,7 @@ export function ApplyForm() {
               type="button"
               onClick={() => setStep(2)}
             >
-              <ArrowLeft size={16} /> Back
+              <ArrowLeft size={16} /> <T>Back</T>
             </button>
             <button
               className="button button-accent"
@@ -548,18 +642,17 @@ export function ApplyForm() {
             >
               {submitting ? (
                 <>
-                  <LoaderCircle className="spin" size={17} /> Saving
+                  <LoaderCircle className="spin" size={17} /> <T>Saving</T>
                 </>
               ) : (
                 <>
-                  Join FirstContact <ArrowRight size={17} />
+                  <T>Join FirstContact</T> <ArrowRight size={17} />
                 </>
               )}
             </button>
           </div>
           <p className="submission-note">
-            Private by default. No catalogue listing or investor outreach is
-            created from this signup.
+            <T>Private by default. No catalogue listing or investor outreach is created from this signup.</T>
           </p>
         </section>
       )}

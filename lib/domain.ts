@@ -82,6 +82,14 @@ export const interestSignupSchema = z.object({
 
 export type InterestSignup = z.infer<typeof interestSignupSchema>;
 
+export const catalogueInterestSchema = z.object({
+  profileId: z.string().trim().min(1).max(60),
+  email: z.string().trim().toLowerCase().email().max(254),
+  note: z.string().trim().max(500).optional().transform((value) => value || undefined),
+});
+
+export type CatalogueInterest = z.infer<typeof catalogueInterestSchema>;
+
 export const investorSchema = z.object({
   id: z.string(),
   firm: z.string(),

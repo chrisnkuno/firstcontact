@@ -18,7 +18,7 @@ This document separates what is shipped from what requires operator-owned accoun
 |---|---|---|
 | Accounts and tenancy | No sign-in; fictional organizations | Configure Convex Auth, identity-derived membership checks, invitations, recovery, and account deletion |
 | Persistence | UI state only | Create separate development/staging/production Convex deployments and generate functions |
-| Catalogue | Fictional founder-approved examples | Listing review workflow, authenticated investors, organization consent, corrections, delisting, and interest notification |
+| Catalogue | Fictional founder-approved examples; investor "Express interest" now writes a real, deduplicated `catalogueInterestSignals` record in Convex | Listing review workflow, authenticated investors, organization consent, corrections, delisting, and interest notification to the organization |
 | Discovery | Sample match data | Exa key, durable normalization workflow, entity deduplication, source re-verification, budget limits |
 | Drafting | Non-fabricated placeholder/sample drafts | OpenAI key, prompt/version logging, evaluation set, claim review, token budgets |
 | Email | Disabled and unauthorized by default | Resend verified reply-capable domain, SPF/DKIM/DMARC, signed webhook persistence, tested bounce/complaint/unsubscribe handling |

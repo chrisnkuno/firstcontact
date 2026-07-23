@@ -37,4 +37,15 @@ export default defineSchema({
   suppressions: defineTable({ emailHash: v.string(), reason: v.union(v.literal("unsubscribe"), v.literal("bounce"), v.literal("complaint"), v.literal("manual")), createdAt: v.number(), source: v.string() }).index("by_email_hash", ["emailHash"]),
   webhookEvents: defineTable({ provider: v.string(), eventId: v.string(), type: v.string(), payload: v.any(), receivedAt: v.number() }).index("by_provider_event", ["provider", "eventId"]),
   auditEvents: defineTable({ organizationId: v.id("organizations"), actorId: v.string(), action: v.string(), entityType: v.string(), entityId: v.string(), metadata: v.optional(v.any()), createdAt: v.number() }).index("by_organization_time", ["organizationId", "createdAt"]),
+  // Real, persisted interest signals against the current static/preview
+  // catalogue profiles (lib/catalogue-data.ts ids). Deliberately not tied to
+  // `catalogueListings`/`organizations` yet since those require the
+  // authenticated multi-tenant model this project has not built out.
+  catalogueInterestSignals: defineTable({
+    profileId: v.string(),
+    email: v.string(),
+    note: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_profile_email", ["profileId", "email"]),
 });
