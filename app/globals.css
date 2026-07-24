@@ -232,3 +232,6 @@
 .profile-field p{margin:0;font-size:13px;line-height:1.6;color:var(--ink)}
 .profile-field.full{grid-column:1/-1}
 @media(max-width:640px){.profile-grid{grid-template-columns:1fr}}
+
+.header-login{white-space:nowrap;font-weight:600;border-bottom:0;padding:0}
+@media(max-width:680px){.header-login{display:none}}
