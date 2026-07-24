@@ -34,7 +34,7 @@ Never commit `.env*` files. Use separate provider projects and keys per environm
 ## Launch security gate
 
 - Wire authentication and remove browser-supplied actor IDs.
-- Add rate limiting to intake, discovery, drafting, and send routes.
+- Keep the durable signup intake limiter deployed; add shared rate limiting to catalogue interest, discovery, drafting, and send routes.
 - Add CSRF/origin protection to authenticated mutations.
 - Add security headers and a strict Content Security Policy.
 - Encrypt especially sensitive fields where deployment risk calls for it.

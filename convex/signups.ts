@@ -54,6 +54,10 @@ const referralSource = v.union(
 export const submit = mutation({
   args: {
     ingestSecret: v.string(),
+    // Optional during the rolling migration so the already-deployed web route
+    // remains compatible until it starts sending the opaque limiter keys.
+    addressRateLimitKey: v.optional(v.string()),
+    addressEmailRateLimitKey: v.optional(v.string()),
     accountType,
     name: v.string(),
     email: v.string(),
@@ -75,6 +79,46 @@ export const submit = mutation({
     const expectedSecret = process.env.SIGNUP_INGEST_SECRET;
     if (!expectedSecret || args.ingestSecret !== expectedSecret) {
       throw new Error("Signup ingestion is not authorized");
+    }
+
+    const now = Date.now();
+    const windowMs = 10 * 60 * 1000;
+    const consumeRateLimit = async (key: string, limit: number) => {
+      const existing = await ctx.db
+        .query("signupRateLimits")
+        .withIndex("by_key", (query) => query.eq("key", key))
+        .unique();
+
+      if (!existing || existing.expiresAt <= now) {
+        if (existing) {
+          await ctx.db.patch(existing._id, {
+            count: 1,
+            windowStartedAt: now,
+            expiresAt: now + windowMs,
+          });
+        } else {
+          await ctx.db.insert("signupRateLimits", {
+            key,
+            count: 1,
+            windowStartedAt: now,
+            expiresAt: now + windowMs,
+          });
+        }
+        return;
+      }
+
+      if (existing.count >= limit) {
+        throw new Error("SIGNUP_RATE_LIMITED");
+      }
+      await ctx.db.patch(existing._id, { count: existing.count + 1 });
+    };
+
+    // The broad address limit blocks bursts without locking out a shared
+    // office/mobile network after only a handful of legitimate signups. The
+    // tighter address+email limit catches repeated submissions atomically.
+    if (args.addressRateLimitKey && args.addressEmailRateLimitKey) {
+      await consumeRateLimit(args.addressRateLimitKey, 40);
+      await consumeRateLimit(args.addressEmailRateLimitKey, 6);
     }
 
     const signup = {
@@ -99,8 +143,6 @@ export const submit = mutation({
       .query("interestSignups")
       .withIndex("by_email", (query) => query.eq("email", signup.email))
       .unique();
-    const now = Date.now();
-
     if (existing) {
       await ctx.db.patch(existing._id, {
         ...signup,

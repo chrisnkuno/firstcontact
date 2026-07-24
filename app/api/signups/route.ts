@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { NextRequest, NextResponse } from "next/server";
@@ -7,6 +6,10 @@ import {
   interestSignupSchema,
   type InterestSignup,
 } from "@/lib/domain";
+import {
+  isTrustedSignupRequest,
+  signupRateLimitKeys,
+} from "@/lib/signup-security";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +47,8 @@ function friendlyValidationMessage(fieldErrors: Record<string, string[] | undefi
 
 type SignupMutationArgs = Omit<InterestSignup, "consentToProcess"> & {
   ingestSecret: string;
+  addressRateLimitKey: string;
+  addressEmailRateLimitKey: string;
   source: string;
   consentRecordedAt: number;
 };
@@ -60,50 +65,49 @@ const submitSignup = makeFunctionReference<
   SignupMutationResult
 >("signups:submit");
 
-const rateLimit = new Map<string, { count: number; resetAt: number }>();
-const WINDOW_MS = 10 * 60 * 1000;
-const MAX_SUBMISSIONS = 5;
-
-function clientKey(request: NextRequest) {
+function clientAddress(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  const address = forwarded || request.headers.get("x-real-ip") || "unknown";
-  return createHash("sha256").update(address).digest("hex");
-}
-
-function isRateLimited(key: string) {
-  const now = Date.now();
-  const current = rateLimit.get(key);
-
-  if (!current || current.resetAt <= now) {
-    rateLimit.set(key, { count: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-
-  current.count += 1;
-  return current.count > MAX_SUBMISSIONS;
+  return forwarded || request.headers.get("x-real-ip") || "unknown";
 }
 
 export async function POST(request: NextRequest) {
-  if (Number(request.headers.get("content-length") ?? 0) > 32_000) {
+  if (!isTrustedSignupRequest({
+    configuredOrigin: process.env.NEXT_PUBLIC_APP_URL,
+    origin: request.headers.get("origin"),
+    requestOrigin: request.nextUrl.origin,
+    secFetchSite: request.headers.get("sec-fetch-site"),
+  })) {
+    return NextResponse.json(
+      { ok: false, message: "This signup request was not accepted." },
+      { status: 403 },
+    );
+  }
+
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+    return NextResponse.json(
+      { ok: false, message: "The signup must be sent as JSON." },
+      { status: 415 },
+    );
+  }
+
+  const declaredLength = Number(request.headers.get("content-length") ?? 0);
+  if (declaredLength > 32_000) {
     return NextResponse.json(
       { ok: false, message: "This submission is too large." },
       { status: 413 },
     );
   }
 
-  if (isRateLimited(clientKey(request))) {
-    return NextResponse.json(
-      {
-        ok: false,
-        message: "Too many attempts. Please wait a few minutes and try again.",
-      },
-      { status: 429 },
-    );
-  }
-
   let body: unknown;
   try {
-    body = await request.json();
+    const rawBody = await request.text();
+    if (new TextEncoder().encode(rawBody).byteLength > 32_000) {
+      return NextResponse.json(
+        { ok: false, message: "This submission is too large." },
+        { status: 413 },
+      );
+    }
+    body = JSON.parse(rawBody);
   } catch {
     return NextResponse.json(
       { ok: false, message: "The submission could not be read." },
@@ -140,6 +144,11 @@ export async function POST(request: NextRequest) {
   }
 
   const signup = parsed.data;
+  const rateLimitKeys = signupRateLimitKeys({
+    address: clientAddress(request),
+    email: signup.email,
+    secret: ingestSecret,
+  });
 
   try {
     const client = new ConvexHttpClient(convexUrl);
@@ -159,6 +168,8 @@ export async function POST(request: NextRequest) {
       referralSource: signup.referralSource,
       productUpdates: signup.productUpdates,
       ingestSecret,
+      addressRateLimitKey: rateLimitKeys.addressKey,
+      addressEmailRateLimitKey: rateLimitKeys.addressEmailKey,
       source: "web-onboarding",
       consentRecordedAt: Date.now(),
     });
@@ -176,7 +187,16 @@ export async function POST(request: NextRequest) {
         headers: { "Cache-Control": "no-store" },
       },
     );
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("SIGNUP_RATE_LIMITED")) {
+      return NextResponse.json(
+        {
+          ok: false,
+          message: "Too many attempts. Please wait ten minutes and try again.",
+        },
+        { status: 429, headers: { "Retry-After": "600" } },
+      );
+    }
     return NextResponse.json(
       {
         ok: false,

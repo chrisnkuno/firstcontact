@@ -24,6 +24,12 @@ export default defineSchema({
     updatedAt: v.number(),
     submissionCount: v.number(),
   }).index("by_email", ["email"]).index("by_status_time", ["status", "createdAt"]),
+  signupRateLimits: defineTable({
+    key: v.string(),
+    count: v.number(),
+    windowStartedAt: v.number(),
+    expiresAt: v.number(),
+  }).index("by_key", ["key"]).index("by_expiry", ["expiresAt"]),
   organizations: defineTable({ name: v.string(), slug: v.string(), createdBy: v.string(), createdAt: v.number() }).index("by_slug", ["slug"]),
   memberships: defineTable({ organizationId: v.id("organizations"), userId: v.string(), role: v.union(v.literal("owner"), v.literal("reviewer"), v.literal("member")) }).index("by_org_user", ["organizationId", "userId"]),
   startupProfiles: defineTable({ organizationId: v.id("organizations"), organizationType: v.union(v.literal("startup"), v.literal("institution")), name: v.string(), website: v.string(), location: v.string(), region: v.string(), stage: v.string(), sectors: v.array(v.string()), raiseAmountUsd: v.number(), oneLiner: v.string(), traction: v.string(), impact: v.string(), founderContext: v.string(), targetRegions: v.array(v.string()), status: v.union(v.literal("draft"), v.literal("active"), v.literal("archived")), consentRecordedAt: v.number(), updatedAt: v.number() }).index("by_organization", ["organizationId"]),
@@ -48,4 +54,57 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_profile_email", ["profileId", "email"]),
+
+  // Techadmin operator accounts. Password hashing (scrypt) happens in the
+  // Next.js server route, which is the only place Node crypto is available;
+  // this table only ever stores/compares the resulting hash string.
+  adminUsers: defineTable({
+    email: v.string(),
+    passwordHash: v.string(),
+    role: v.literal("techadmin"),
+    createdAt: v.number(),
+    lastLoginAt: v.optional(v.number()),
+    // Set once enrollment starts, but mfaEnabled only flips true after the
+    // admin proves possession of the authenticator app with a real code.
+    mfaSecret: v.optional(v.string()),
+    mfaEnabled: v.boolean(),
+  }).index("by_email", ["email"]),
+
+  // Bridges the gap between "password verified" and "session issued" once
+  // MFA is enabled: single-use, five-minute-lived, never itself sufficient
+  // to authenticate — only a valid TOTP code can consume one.
+  adminMfaChallenges: defineTable({
+    tokenHash: v.string(),
+    adminUserId: v.id("adminUsers"),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  }).index("by_token_hash", ["tokenHash"]).index("by_expiry", ["expiresAt"]),
+
+  // Sessions are opaque, random tokens; only their SHA-256 hash is ever
+  // stored, so a database read alone can never yield a usable session.
+  adminSessions: defineTable({
+    tokenHash: v.string(),
+    adminUserId: v.id("adminUsers"),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    userAgent: v.optional(v.string()),
+  }).index("by_token_hash", ["tokenHash"]).index("by_expiry", ["expiresAt"]),
+
+  adminLoginAttempts: defineTable({
+    key: v.string(),
+    count: v.number(),
+    windowStartedAt: v.number(),
+    expiresAt: v.number(),
+  }).index("by_key", ["key"]).index("by_expiry", ["expiresAt"]),
+
+  // Accountability trail for status changes made through the techadmin
+  // pipeline view.
+  adminAuditLog: defineTable({
+    adminUserId: v.id("adminUsers"),
+    action: v.string(),
+    targetType: v.string(),
+    targetId: v.string(),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+  }).index("by_time", ["createdAt"]),
 });

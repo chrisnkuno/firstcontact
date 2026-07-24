@@ -26,6 +26,21 @@ This document separates what is shipped from what requires operator-owned accoun
 | Production operations | Health endpoint and Vercel logs | Alerts, error tracking with redaction, backup/restore exercise, deletion runbook, incident ownership, cost alerts |
 | Automatic deployment | Manual Vercel CLI deployment works | Connect GitHub as a Vercel account login connection, then attach `chrisnkuno/firstcontact` to the Vercel project |
 
+## Math tools and techadmin auth — what's real, what's illustrative, what's missing
+
+Added in the same pass: `/plan` and `/pacing` (outreach/pacing math), the homepage economics diagram, and the `/admin` techadmin system. Same rule as everywhere else in this document: nothing here should be read as more finished than it is.
+
+| Area | Real | Illustrative / not yet built |
+|---|---|---|
+| `/plan`, `/pacing` math | The funnel arithmetic itself (`lib/outreach-math.ts`, `lib/portfolio-math.ts`) is exact and unit-tested | The default conversion rates and check sizes are general planning assumptions, not FirstContact's own measured performance — every input is user-editable for exactly that reason |
+| `/plan`, `/pacing` scorecards | Pulled live from Convex (`/api/stats`, `/api/catalogue-stats`); shows nothing rather than a fabricated number when unconfigured | No personalized/per-user tracking — that needs the founder/investor account system below, which doesn't exist yet |
+| Homepage economics diagram | — | Fully illustrative: a general capital-formation/multiplier/agglomeration explanation, not a claim about this specific network's outcomes |
+| Techadmin login | Real scrypt password hashing, Convex-backed revocable sessions, HttpOnly/Secure/SameSite=Strict cookies, per-address and per-address+email rate limits, generic error messages (no user enumeration), same-origin request checks | No password-reset flow — re-run `scripts/create-admin.mjs` with the same email to reset |
+| Techadmin MFA | Real, self-contained RFC 6238 TOTP (`lib/totp.ts`), mandatory after first login, single-use challenge cookies, works with any standard authenticator app | No backup/recovery codes — a lost authenticator device currently requires an operator to clear `mfaSecret`/`mfaEnabled` by hand in the Convex dashboard |
+| Techadmin roles | — | One role only (`techadmin`); no per-admin permission levels, no invitation flow, no way to list/revoke other admins' sessions from the UI |
+| Techadmin audit trail | Status changes are written to `adminAuditLog` | No UI to browse it yet — read it directly in the Convex dashboard |
+| Techadmin vs. founder/investor auth | — | This is a narrow, single-role system built with self-contained primitives (scrypt, hand-rolled TOTP) matching this repo's existing secret-gated-mutation pattern. It is **not** the `@convex-dev/auth` multi-tenant integration this document's "Accounts and tenancy" row calls for — that remains separate, unbuilt work for founder/investor accounts |
+
 ## Recommended activation order
 
 1. Configure authentication and tenant authorization; prove cross-tenant isolation.

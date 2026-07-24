@@ -13,6 +13,7 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { T, useTranslation } from "@/components/translation-provider";
+import { normalizeSignupWebsite } from "@/lib/domain";
 
 const accountTypes = [
   {
@@ -107,6 +108,7 @@ export function ApplyForm() {
   const [form, setForm] = useState<FormState>(initialState);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [result, setResult] = useState<{
     reference: string;
     created: boolean;
@@ -115,6 +117,12 @@ export function ApplyForm() {
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
     setError("");
+    setFieldErrors((current) => {
+      if (!current[key]) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
   }
 
   function toggleList(key: "goals" | "targetRegions", value: string) {
@@ -130,37 +138,34 @@ export function ApplyForm() {
   // Mirrors lib/domain.ts's trimmed-length rules so a field that merely looks
   // long enough on screen (e.g. padded with trailing spaces) is caught here,
   // in context, instead of failing silently after the network round trip.
-  function validateStep(current: number): string | null {
+  function validateStep(current: number): { field: string; message: string } | null {
     if (current === 1) {
-      if (form.name.trim().length < 2) return "Add your name.";
-      if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) return "Add a valid email address.";
-      if (form.location.trim().length < 2) return "Add your location.";
+      if (form.name.trim().length < 2) return { field: "name", message: "Add your name." };
+      if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) return { field: "email", message: "Add a valid email address." };
+      if (form.location.trim().length < 2) return { field: "location", message: "Add your location." };
       if (form.accountType === "individual" && !form.individualRole) {
-        return "Choose the role that best describes you.";
+        return { field: "individualRole", message: "Choose the role that best describes you." };
       }
       if (form.accountType !== "individual" && !form.organizationName.trim()) {
-        return `Add your ${form.accountType === "startup" ? "company" : "institution"} name.`;
+        return { field: "organizationName", message: `Add your ${form.accountType === "startup" ? "company" : "institution"} name.` };
       }
     }
 
     if (current === 2) {
-      if (form.website && !/^https?:\/\//i.test(form.website.trim())) {
-        return "Website links need to start with https://.";
-      }
       if (form.summary.trim().length < 20) {
-        return "Add a little more detail to the summary (20 characters minimum).";
+        return { field: "summary", message: "Add a little more detail to the summary (20 characters minimum)." };
       }
       if (form.context.trim().length < 20) {
-        return "Add a little more detail to the context field (20 characters minimum).";
+        return { field: "context", message: "Add a little more detail to the context field (20 characters minimum)." };
       }
     }
 
     if (current === 3) {
       if (!form.goals.length) {
-        return "Choose at least one way you would like to use FirstContact.";
+        return { field: "goals", message: "Choose at least one way you would like to use FirstContact." };
       }
       if (!form.consentToProcess) {
-        return "Please confirm consent to store your signup information.";
+        return { field: "consentToProcess", message: "Please confirm consent to store your signup information." };
       }
     }
 
@@ -168,9 +173,10 @@ export function ApplyForm() {
   }
 
   function continueTo(nextStep: number) {
-    const message = validateStep(step);
-    if (message) {
-      setError(message);
+    const issue = validateStep(step);
+    if (issue) {
+      setError(issue.message);
+      setFieldErrors({ [issue.field]: [issue.message] });
       return;
     }
     setError("");
@@ -180,26 +186,40 @@ export function ApplyForm() {
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const message = validateStep(3);
-    if (message) {
-      setError(message);
-      return;
+    for (const candidateStep of [1, 2, 3]) {
+      const issue = validateStep(candidateStep);
+      if (issue) {
+        setStep(candidateStep);
+        setError(issue.message);
+        setFieldErrors({ [issue.field]: [issue.message] });
+        window.setTimeout(() => {
+          formRef.current
+            ?.querySelector<HTMLElement>(`[name="${issue.field}"]`)
+            ?.focus();
+        });
+        return;
+      }
     }
 
     setSubmitting(true);
     setError("");
+    setFieldErrors({});
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 20_000);
 
     try {
+      const website = normalizeSignupWebsite(form.website);
       const response = await fetch("/api/signups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
           ...form,
           organizationName:
             form.accountType === "individual"
               ? form.organizationName || undefined
               : form.organizationName,
-          website: form.website || undefined,
+          website,
           individualRole:
             form.accountType === "individual"
               ? form.individualRole
@@ -207,19 +227,37 @@ export function ApplyForm() {
           stage: form.accountType === "startup" ? form.stage : undefined,
         }),
       });
-      const payload = (await response.json()) as {
+      const responseBody = await response.text();
+      let payload: {
         ok: boolean;
         message?: string;
         reference?: string;
         created?: boolean;
         fields?: Record<string, string[] | undefined>;
       };
+      try {
+        payload = JSON.parse(responseBody) as typeof payload;
+      } catch {
+        throw new Error(
+          response.ok
+            ? "The signup response could not be confirmed. Please try again."
+            : "The signup service is temporarily unavailable. Please try again shortly.",
+        );
+      }
+      if (!payload || typeof payload !== "object") {
+        throw new Error("The signup response could not be confirmed. Please try again.");
+      }
 
       if (!response.ok || !payload.ok || !payload.reference) {
         const erroredFields = Object.keys(payload.fields ?? {}).filter(
           (key) => payload.fields?.[key]?.length,
         );
         if (erroredFields.length) {
+          setFieldErrors(
+            Object.fromEntries(
+              erroredFields.map((key) => [key, payload.fields?.[key] ?? []]),
+            ),
+          );
           const earliestStep = erroredFields.reduce(
             (min, key) => Math.min(min, fieldToStep[key] ?? 3),
             3,
@@ -235,11 +273,14 @@ export function ApplyForm() {
       });
     } catch (submissionError) {
       setError(
-        submissionError instanceof Error
+        submissionError instanceof DOMException && submissionError.name === "AbortError"
+          ? "Saving is taking longer than expected. Please check your connection and try again; a repeat submission will update the same record."
+          : submissionError instanceof Error
           ? submissionError.message
           : "Your signup could not be saved.",
       );
     } finally {
+      window.clearTimeout(timeout);
       setSubmitting(false);
     }
   }
@@ -325,8 +366,11 @@ export function ApplyForm() {
             <label>
               <T>Your name</T>
               <input
+                name="name"
                 required
                 minLength={2}
+                maxLength={100}
+                aria-invalid={Boolean(fieldErrors.name)}
                 value={form.name}
                 onChange={(event) => update("name", event.target.value)}
                 autoComplete="name"
@@ -336,8 +380,11 @@ export function ApplyForm() {
             <label>
               <T>Work email</T>
               <input
+                name="email"
                 required
                 type="email"
+                maxLength={254}
+                aria-invalid={Boolean(fieldErrors.email)}
                 value={form.email}
                 onChange={(event) => update("email", event.target.value)}
                 autoComplete="email"
@@ -353,8 +400,11 @@ export function ApplyForm() {
             <label>
               <T>Location</T>
               <input
+                name="location"
                 required
                 minLength={2}
+                maxLength={120}
+                aria-invalid={Boolean(fieldErrors.location)}
                 value={form.location}
                 onChange={(event) => update("location", event.target.value)}
                 autoComplete="country-name"
@@ -365,7 +415,9 @@ export function ApplyForm() {
               <label>
                 <T>Your primary role</T>
                 <select
+                  name="individualRole"
                   required
+                  aria-invalid={Boolean(fieldErrors.individualRole)}
                   value={form.individualRole}
                   onChange={(event) =>
                     update("individualRole", event.target.value)
@@ -384,8 +436,11 @@ export function ApplyForm() {
               <label>
                 <T>Organization name</T>
                 <input
+                  name="organizationName"
                   required
                   minLength={2}
+                  maxLength={120}
+                  aria-invalid={Boolean(fieldErrors.organizationName)}
                   value={form.organizationName}
                   onChange={(event) =>
                     update("organizationName", event.target.value)
@@ -426,9 +481,17 @@ export function ApplyForm() {
             <label>
               <T>Website</T> <small>OPTIONAL</small>
               <input
-                type="url"
+                name="website"
+                type="text"
+                inputMode="url"
+                maxLength={2048}
+                aria-invalid={Boolean(fieldErrors.website)}
                 value={form.website}
                 onChange={(event) => update("website", event.target.value)}
+                onBlur={() => {
+                  const website = normalizeSignupWebsite(form.website);
+                  if (website) update("website", website);
+                }}
                 autoComplete="url"
                 placeholder="https://"
               />
@@ -437,6 +500,7 @@ export function ApplyForm() {
               <label>
                 <T>Current stage</T>
                 <select
+                  name="stage"
                   value={form.stage}
                   onChange={(event) => update("stage", event.target.value)}
                 >
@@ -451,6 +515,8 @@ export function ApplyForm() {
               <label>
                 <T>Organization</T> <small>OPTIONAL</small>
                 <input
+                  name="organizationName"
+                  maxLength={120}
                   value={form.organizationName}
                   onChange={(event) =>
                     update("organizationName", event.target.value)
@@ -469,11 +535,13 @@ export function ApplyForm() {
                 : "What are you building or enabling?"}
             </T>
             <textarea
+              name="summary"
               required
               minLength={20}
               maxLength={700}
               rows={4}
               value={form.summary}
+              aria-invalid={Boolean(fieldErrors.summary)}
               onChange={(event) => update("summary", event.target.value)}
               placeholder={t("A short, concrete description in your own words.")}
             />
@@ -483,11 +551,13 @@ export function ApplyForm() {
           <label>
             <T>What context would someone outside your ecosystem miss?</T>
             <textarea
+              name="context"
               required
               minLength={20}
               maxLength={1200}
               rows={5}
               value={form.context}
+              aria-invalid={Boolean(fieldErrors.context)}
               onChange={(event) => update("context", event.target.value)}
               placeholder={t("Local market realities, expertise, constraints, access, or opportunities that change the picture.")}
             />
@@ -530,6 +600,7 @@ export function ApplyForm() {
                   key={value}
                 >
                   <input
+                    name="goals"
                     type="checkbox"
                     checked={form.goals.includes(value)}
                     onChange={() => toggleList("goals", value)}
@@ -582,8 +653,10 @@ export function ApplyForm() {
           <div className="consent-stack">
             <label className="consent">
               <input
+                name="consentToProcess"
                 required
                 type="checkbox"
+                aria-invalid={Boolean(fieldErrors.consentToProcess)}
                 checked={form.consentToProcess}
                 onChange={(event) =>
                   update("consentToProcess", event.target.checked)

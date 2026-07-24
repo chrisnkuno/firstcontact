@@ -38,7 +38,7 @@ Choose the path that matches what you want to do:
 ### Persisted
 
 - The three-step `/signup` questionnaire validates input through the shared contract in `lib/domain.ts`.
-- `POST /api/signups` applies payload limits, a honeypot, validation, and an in-memory per-instance rate limit.
+- `POST /api/signups` applies actual-byte payload limits, same-origin browser checks, a honeypot, shared validation, and durable Convex-backed rate limits.
 - Convex stores private interest records and deduplicates them by normalized email.
 - Repeat submissions update the existing record, retain its review status, and increment a submission counter.
 - Consent time, participation goals, referral source, product-update preference, and a private reference are recorded.
@@ -75,14 +75,22 @@ See [Launch readiness](docs/LAUNCH_READINESS.md) before treating any part of the
 
 | Route | Purpose | Data behavior |
 |---|---|---|
-| `/` | Explains the operating model and principles; shows a live, honest signup-count section | Public content + real Convex aggregate stats |
+| `/` | Explains the operating model and principles; shows a live, honest signup-count section and an economics diagram | Public content + real Convex aggregate stats |
 | `/signup` | Collects participation interest | Persists only when Convex signup ingestion is configured |
 | `/workspace` | Demonstrates the founder/operator control center | Fictional preview state |
 | `/catalogue` | Demonstrates consent-based company discovery | Fictional profiles; "Express interest" persists a real signal to Convex |
+| `/plan` | Founder outreach funnel planner: how many investor contacts a raise requires, run backward from the goal | Real math over user-editable assumptions, plus a live Convex network scorecard |
+| `/pacing` | Investor portfolio pacing planner: how many companies to review/meet to hit a portfolio target | Real math over user-editable assumptions, plus a live Convex catalogue-interest scorecard |
+| `/how-it-works` | Expands the four-step model, with real-vs-preview status per step | Public content |
+| `/system` | Expands the four accountable system layers (discover/interpret/control/learn) | Public content |
+| `/principles` | Expands the four founding principles | Public content |
+| `/for-founders`, `/for-investors` | Audience-specific overviews linking to the relevant tools | Public content |
 | `/responsible-outreach` | Explains the outreach safety model | Public content |
 | `/privacy`, `/terms`, `/security` | Baseline policy and security information | Templates that operators must adapt |
+| `/admin` | Techadmin dashboard: platform metrics and signup pipeline management | Requires a techadmin session; see [Techadmin access](#techadmin-access) |
 | `/api/health` | Reports configured provider capabilities | Never returns secret values |
 | `/api/stats` | Reports real, non-PII signup aggregates | `{ configured: false }` rather than fabricated zeros when Convex isn't set up |
+| `/api/catalogue-stats` | Reports real, non-PII catalogue-interest aggregates | `{ configured: false }` rather than fabricated zeros when Convex isn't set up |
 | `/api/translate` | Translates UI copy for the language switcher | Echoes input back unchanged without `OPENAI_API_KEY` |
 
 Every page also offers a language switcher (English, French, Spanish, Portuguese, Swahili, Arabic, Bengali) that machine-translates on-screen copy through `/api/translate`, aimed at widening who can realistically use the catalogue and signup flow beyond English speakers.
@@ -171,7 +179,7 @@ Convex is the production source of truth. The browser does not write signup reco
 
 Never prefix `SIGNUP_INGEST_SECRET` or a provider API key with `NEXT_PUBLIC_`. Variables with that prefix are included in browser-accessible code.
 
-The current rate limiter is held in the memory of one Next.js process. A multi-instance production deployment should replace it with a shared durable limiter or edge/WAF control.
+Signup limits are enforced atomically in Convex with keyed HMAC digests: a broad address limit protects the service without penalizing a shared office or mobile network after only a few signups, while a tighter address-and-email limit catches repeated submissions. Expired limiter records are deleted by the daily maintenance job. An edge/WAF layer is still recommended at larger scale.
 
 ## Environment variables
 
@@ -184,6 +192,8 @@ Copy `.env.example` to `.env.local` for local work. Use separate credentials and
 | `CONVEX_URL` | Server only | Signup persistence | Preferred server-side Convex URL |
 | `NEXT_PUBLIC_CONVEX_URL` | Public | Convex client configuration and health reporting | A deployment URL, not a secret |
 | `SIGNUP_INGEST_SECRET` | Server only | Authorized signup and catalogue-interest ingestion | Must match the Convex environment value; also gates `POST /api/catalogue-interest` |
+| `ADMIN_BOOTSTRAP_SECRET` | Server only | Creating/resetting techadmin accounts | Only used by `scripts/create-admin.mjs`; safe to rotate/remove after the accounts you need exist |
+| `ADMIN_ACTION_SECRET` | Server only | All authenticated `/admin` reads and writes | Must match the Convex environment value; distinct from `SIGNUP_INGEST_SECRET` so its blast radius stays contained |
 | `EXA_API_KEY` | Server only | Live investor discovery | Do not expose the discovery route publicly without auth and budgets |
 | `OPENAI_API_KEY` | Server only | Structured draft generation and `/api/translate` | Without it, translation echoes the original text instead of fabricating a translation |
 | `OPENAI_MODEL` | Server only | Draft model selection | Defaults to `gpt-5-nano` |
@@ -202,6 +212,17 @@ curl http://localhost:3000/api/health
 ```
 
 The overall `mode` is `configured` only when the main provider variables are present. That status means “credentials appear configured,” not “the deployment has passed production readiness.”
+
+## Techadmin access
+
+`/admin` is a separate, operator-only surface for platform metrics and moving `interestSignups` records through the pipeline (`new → reviewing → invited → active/declined`). It is not part of the founder/investor product surface, is excluded from the sitemap, and is disallowed in `robots.ts`.
+
+1. Set `ADMIN_BOOTSTRAP_SECRET` and `ADMIN_ACTION_SECRET` on the Convex deployment (`bunx convex env set ADMIN_BOOTSTRAP_SECRET` / `... ADMIN_ACTION_SECRET`), then put the same values in `.env.local` (never commit them).
+2. Create an account: `node --env-file=.env.local scripts/create-admin.mjs you@example.com`. This prints a one-time password — store it in a password manager; it is never shown again and never written to disk.
+3. Sign in at `/admin/login`. Multi-factor sign-in is mandatory: the first sign-in redirects to `/admin/mfa/setup`, which shows a QR code for any TOTP authenticator app (Google Authenticator, 1Password, Authy). Every sign-in after that requires both the password and a current 6-digit code.
+4. Sessions are Convex-backed, revocable, HttpOnly/Secure/SameSite=Strict cookies (12-hour TTL). Password hashing uses scrypt; login and MFA verification are rate-limited per address and per address+email.
+
+There is no password-reset flow yet — re-run the bootstrap script with the same email to reset a forgotten password, and no MFA-recovery/backup-codes flow — losing the authenticator device currently requires an operator to reset the account by hand in the Convex dashboard. This is a deliberately narrow, single-role (`techadmin`) auth system, not the full multi-tenant `@convex-dev/auth` integration referenced in [Launch readiness](docs/LAUNCH_READINESS.md) for founder/investor accounts — that remains a separate, unbuilt piece of work.
 
 ## Provider adapters
 
@@ -282,11 +303,18 @@ lib/domain.ts           Shared Zod validation and TypeScript contracts
 lib/compliance.ts       Deterministic outbound policy gate
 lib/matching.ts         Explainable deterministic matching
 lib/network-stats.ts    Real, non-PII Convex signup aggregates for the homepage
+lib/catalogue-stats.ts  Real, non-PII Convex catalogue-interest aggregates
+lib/outreach-math.ts    Founder outreach funnel formulas (/plan)
+lib/portfolio-math.ts   Investor pacing formulas (/pacing)
 lib/languages.ts        Supported UI translation languages
 lib/demo-data.ts        Clearly labeled fictional preview data
-tests/                  Signup, compliance, and matching tests
+lib/password.ts         scrypt password hashing for techadmin accounts
+lib/totp.ts             Self-contained RFC 6238 TOTP for techadmin MFA
+lib/admin-auth.ts       Techadmin session issuance/verification
+lib/admin-data.ts       Server-side reads for the techadmin dashboard
+tests/                  Signup, compliance, matching, math, and totp tests
 docs/                   Architecture, operations, compliance, and roadmap
-scripts/                Repository maintenance and asset scripts
+scripts/                Repository maintenance, asset, and admin-bootstrap scripts
 ```
 
 ## Adapting and self-hosting

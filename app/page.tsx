@@ -3,6 +3,7 @@ import { ArrowRight, Check, Code2, Globe2, Radar, ShieldCheck, Sparkles } from "
 import { SiteHeader } from "@/components/site-header";
 import { WorldSignal } from "@/components/world-signal";
 import { NetworkSignal } from "@/components/network-signal";
+import { EconomicsFlywheel } from "@/components/economics-flywheel";
 import { T } from "@/components/translation-provider";
 
 export const revalidate = 60;
@@ -40,6 +41,8 @@ export default function Home() {
         <div className="thesis-copy"><T>Warm networks still decide who gets heard. FirstContact makes investor discovery and context-rich introductions legible, repeatable, and available to ecosystems the traditional venture map overlooks.</T></div>
       </section>
 
+      <EconomicsFlywheel />
+
       <section className="model section-shell" id="model">
         <div className="section-heading"><span>01 / THE MODEL</span><h2><T>From local context</T><br /><T>to global signal.</T></h2><p><T>Automation does the research and repetitive work. People retain agency at every consequential step.</T></p></div>
         <div className="step-grid">
@@ -47,6 +50,7 @@ export default function Home() {
             <article className="step" key={number}><div className="step-top"><span>{number}</span><Icon size={22} /></div><h3><T>{title}</T></h3><p><T>{description}</T></p></article>
           ))}
         </div>
+        <Link className="text-link section-more" href="/how-it-works"><T>See how each step works</T> <ArrowRight size={16} /></Link>
       </section>
 
       <section className="system-section section-shell">
@@ -57,6 +61,7 @@ export default function Home() {
           <article className="bento-control"><span>03 / CONTROL</span><h3><T>People hold the edge.</T></h3><p><T>Approval, jurisdiction, identity, suppression, and rate-limit gates all fail closed.</T></p><ul><li><T>Source verified</T></li><li><T>Human approved</T></li><li><T>Suppression clear</T></li></ul></article>
           <article className="bento-learn"><span>04 / LEARN</span><h3><T>A pipeline, not a blast.</T></h3><p><T>Resend delivery events and replies become an auditable history founders can act on.</T></p><div className="signal-line"><i /><i /><i /><i /></div></article>
         </div>
+        <Link className="text-link section-more" href="/system"><T>Read the full system, real vs. preview</T> <ArrowRight size={16} /></Link>
       </section>
 
       <section className="principles section-shell" id="principles">
@@ -67,11 +72,15 @@ export default function Home() {
           <article><b>03</b><div><h3><T>Founders own the narrative</T></h3><p><T>AI can structure and draft, but it cannot invent traction, impersonate a founder, or overwrite their context.</T></p></div></article>
           <article><b>04</b><div><h3><T>Open by default</T></h3><p><T>Portable data, inspectable scoring, replaceable providers, and documentation deep enough to run independently.</T></p></div></article>
         </div>
+        <Link className="text-link section-more" href="/principles"><T>Read the full principles</T> <ArrowRight size={16} /></Link>
       </section>
 
       <section className="two-sides section-shell">
         <div className="section-heading"><span>04 / TWO USEFUL VIEWS</span><h2><T>Agency for founders.</T><br /><T>Context for capital.</T></h2><p><T>Each side sees only what it needs. Organizations govern their narrative and outreach; investors browse consented, decision-useful context.</T></p></div>
-        <div className="two-side-grid"><article><span>FOR STARTUPS + INSTITUTIONS</span><h3><T>Control the pipeline.</T></h3><p><T>Review matches, approve specific messages, choose catalogue visibility, set campaign pace, and pause outreach at any time.</T></p><Link href="/workspace"><T>Open founder workspace</T> <ArrowRight size={16} /></Link></article><article><span>FOR INVESTORS</span><h3><T>Browse beyond the usual network.</T></h3><p><T>Filter a curated flow by geography, stage, sector, and organization type. See strengths, open questions, context, and capital needs before expressing interest.</T></p><Link href="/catalogue"><T>Explore the VC catalogue</T> <ArrowRight size={16} /></Link></article></div>
+        <div className="two-side-grid">
+          <article><span>FOR STARTUPS + INSTITUTIONS</span><h3><T>Control the pipeline.</T></h3><p><T>Review matches, approve specific messages, choose catalogue visibility, set campaign pace, and pause outreach at any time.</T></p><Link href="/workspace"><T>Open founder workspace</T> <ArrowRight size={16} /></Link><Link className="text-link section-more" href="/for-founders"><T>What founders get</T> <ArrowRight size={16} /></Link><Link className="text-link section-more" href="/plan"><T>Plan your raise with real math</T> <ArrowRight size={16} /></Link></article>
+          <article><span>FOR INVESTORS</span><h3><T>Browse beyond the usual network.</T></h3><p><T>Filter a curated flow by geography, stage, sector, and organization type. See strengths, open questions, context, and capital needs before expressing interest.</T></p><Link href="/catalogue"><T>Explore the VC catalogue</T> <ArrowRight size={16} /></Link><Link className="text-link section-more" href="/for-investors"><T>What investors get</T> <ArrowRight size={16} /></Link><Link className="text-link section-more" href="/pacing"><T>Pace your deal flow with real math</T> <ArrowRight size={16} /></Link></article>
+        </div>
       </section>
 
       <section className="cta section-shell">

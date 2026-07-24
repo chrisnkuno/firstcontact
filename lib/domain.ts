@@ -36,7 +36,19 @@ export const startupProfileSchema = z.object({
 
 export type StartupProfile = z.infer<typeof startupProfileSchema>;
 
-const optionalUrl = z.union([z.literal(""), z.string().url()]).optional().transform((value) => value || undefined);
+const httpUrl = z.string().max(2048).url().refine((value) => {
+  const protocol = new URL(value).protocol;
+  return protocol === "http:" || protocol === "https:";
+}, "Use an http:// or https:// website address");
+
+const optionalUrl = z.union([z.literal(""), httpUrl]).optional().transform((value) => value || undefined);
+
+export function normalizeSignupWebsite(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (/^[a-z][a-z\d+.-]*:/i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
 
 export const interestSignupSchema = z.object({
   accountType: z.enum(signupTypes),
@@ -49,7 +61,7 @@ export const interestSignupSchema = z.object({
   stage: z.enum(stages).optional(),
   summary: z.string().trim().min(20).max(700),
   context: z.string().trim().min(20).max(1200),
-  goals: z.array(z.enum(participationGoals)).min(1).max(5),
+  goals: z.array(z.enum(participationGoals)).min(1).max(participationGoals.length),
   targetRegions: z.array(z.enum(capitalRegions)).max(4),
   referralSource: z.enum(referralSources),
   consentToProcess: z.literal(true),

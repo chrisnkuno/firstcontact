@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { interestSignupSchema } from "@/lib/domain";
+import { interestSignupSchema, normalizeSignupWebsite } from "@/lib/domain";
 
 const common = {
   name: "Amina N.",
@@ -54,6 +54,44 @@ describe("interest signup", () => {
       accountType: "individual",
       individualRole: "investor",
       goals: ["invest", "mentor"],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("normalizes a website without forcing the user to type a scheme", () => {
+    expect(normalizeSignupWebsite(" kivu.example/path ")).toBe(
+      "https://kivu.example/path",
+    );
+  });
+
+  it("rejects non-web URL schemes", () => {
+    const result = interestSignupSchema.safeParse({
+      ...common,
+      accountType: "startup",
+      organizationName: "Kivu Grid",
+      website: "javascript:alert(1)",
+      stage: "seed",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts every listed participation goal", () => {
+    const result = interestSignupSchema.safeParse({
+      ...common,
+      accountType: "startup",
+      organizationName: "Kivu Grid",
+      stage: "seed",
+      goals: [
+        "raise-capital",
+        "find-investors",
+        "join-catalogue",
+        "mentor",
+        "partner",
+        "research",
+        "invest",
+      ],
     });
 
     expect(result.success).toBe(true);
