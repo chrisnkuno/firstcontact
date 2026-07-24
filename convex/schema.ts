@@ -107,4 +107,31 @@ export default defineSchema({
     metadata: v.optional(v.any()),
     createdAt: v.number(),
   }).index("by_time", ["createdAt"]),
+
+  // A deliberately separate, low-privilege login surface from adminUsers:
+  // a founder account can only ever read its own interestSignups record
+  // (matched by email at query time), never anyone else's data or any
+  // platform-wide metric. Gated by its own secret (FOUNDER_ACTION_SECRET)
+  // so a leak here can never be used to reach the techadmin surface.
+  founderAccounts: defineTable({
+    email: v.string(),
+    passwordHash: v.string(),
+    createdAt: v.number(),
+    lastLoginAt: v.optional(v.number()),
+  }).index("by_email", ["email"]),
+
+  founderSessions: defineTable({
+    tokenHash: v.string(),
+    founderAccountId: v.id("founderAccounts"),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    userAgent: v.optional(v.string()),
+  }).index("by_token_hash", ["tokenHash"]).index("by_expiry", ["expiresAt"]),
+
+  founderLoginAttempts: defineTable({
+    key: v.string(),
+    count: v.number(),
+    windowStartedAt: v.number(),
+    expiresAt: v.number(),
+  }).index("by_key", ["key"]).index("by_expiry", ["expiresAt"]),
 });

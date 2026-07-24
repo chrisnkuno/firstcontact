@@ -28,6 +28,18 @@ export const applyRetentionPolicy = internalMutation({
       .take(500);
     await Promise.all(expiredAdminMfaChallenges.map((record) => ctx.db.delete(record._id)));
 
+    const expiredFounderSessions = await ctx.db
+      .query("founderSessions")
+      .withIndex("by_expiry", (query) => query.lt("expiresAt", now))
+      .take(500);
+    await Promise.all(expiredFounderSessions.map((record) => ctx.db.delete(record._id)));
+
+    const expiredFounderLoginAttempts = await ctx.db
+      .query("founderLoginAttempts")
+      .withIndex("by_expiry", (query) => query.lt("expiresAt", now))
+      .take(500);
+    await Promise.all(expiredFounderLoginAttempts.map((record) => ctx.db.delete(record._id)));
+
     // Intentionally conservative: implement deployment-specific deletion only after
     // the operator documents retention requirements and legal holds.
     return {
@@ -36,6 +48,8 @@ export const applyRetentionPolicy = internalMutation({
       expiredAdminSessionsDeleted: expiredAdminSessions.length,
       expiredAdminLoginAttemptsDeleted: expiredAdminLoginAttempts.length,
       expiredAdminMfaChallengesDeleted: expiredAdminMfaChallenges.length,
+      expiredFounderSessionsDeleted: expiredFounderSessions.length,
+      expiredFounderLoginAttemptsDeleted: expiredFounderLoginAttempts.length,
     };
   },
 });
