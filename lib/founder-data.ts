@@ -5,8 +5,17 @@ export type MyStatus = {
   accountType: "startup" | "institution" | "individual";
   name: string;
   organizationName?: string;
+  website?: string;
+  location: string;
+  stage?: "pre-seed" | "seed" | "series-a" | "series-b+" | "growth" | "institutional";
+  individualRole?: "founder" | "investor" | "operator" | "advisor" | "researcher" | "other";
+  summary: string;
+  context: string;
   status: "new" | "reviewing" | "invited" | "active" | "declined";
   goals: string[];
+  targetRegions: string[];
+  referralSource: string;
+  productUpdates: boolean;
   submissionCount: number;
   createdAt: number;
   updatedAt: number;

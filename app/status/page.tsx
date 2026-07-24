@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { getFounderSession } from "@/lib/founder-auth";
 import { getMyStatus } from "@/lib/founder-data";
 import { FounderLoginForm } from "@/components/founder-login-form";
-import { FounderStatusCard } from "@/components/founder-status-card";
+import { FounderDashboard } from "@/components/founder-dashboard";
 
 export const metadata: Metadata = {
-  title: "Check your status",
+  title: "Your dashboard",
   robots: { index: false, follow: false },
 };
 
@@ -14,7 +14,7 @@ export default async function StatusPage() {
 
   return (
     <main id="main-content">
-      {session ? <FounderStatusCard email={session.email} status={await getMyStatus(session.founderAccountId)} /> : <FounderLoginForm />}
+      {session ? <FounderDashboard email={session.email} status={await getMyStatus(session.founderAccountId)} /> : <FounderLoginForm />}
     </main>
   );
 }
