@@ -1,6 +1,7 @@
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { Activity, Building2, Globe2, Users } from "lucide-react";
-import { getNetworkStats } from "@/lib/network-stats";
+import { getNetworkStats, regionSharePercent } from "@/lib/network-stats";
 import { T } from "@/components/translation-provider";
 
 function relativeTime(timestamp: number) {
@@ -62,13 +63,23 @@ export async function NetworkSignal() {
           <div className="signal-regions">
             <span><T>CAPITAL REGIONS OF INTEREST</T></span>
             <div>
-              {(["US", "UK", "EU", "APAC"] as const).map((region) => (
-                <div key={region} className="signal-region-row">
-                  <b>{region}</b>
-                  <i style={{ width: `${result.stats.total ? Math.max((result.stats.byRegion[region] / result.stats.total) * 100, result.stats.byRegion[region] > 0 ? 4 : 0) : 0}%` }} />
-                  <em>{result.stats.byRegion[region]}</em>
-                </div>
-              ))}
+              {(["US", "UK", "EU", "APAC"] as const).map((region) => {
+                const count = result.stats.byRegion[region];
+                const total = result.stats.total;
+                const fill = regionSharePercent(count, total);
+                const share = total ? (count / total) * 100 : 0;
+                return (
+                  <div key={region} className="signal-region-row">
+                    <b>{region}</b>
+                    <i
+                      style={{ "--fill": `${fill.toFixed(1)}%` } as CSSProperties}
+                      role="img"
+                      aria-label={`${region}: ${count} of ${result.stats.total} signups, ${Math.round(share)} percent`}
+                    />
+                    <em>{count}</em>
+                  </div>
+                );
+              })}
             </div>
             {result.stats.latestCreatedAt && (
               <small>Last signup {relativeTime(result.stats.latestCreatedAt)} · recalculated every 60 seconds</small>

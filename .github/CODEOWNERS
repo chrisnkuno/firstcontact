@@ -1,0 +1,20 @@
+# Default owner for everything in the repository.
+*                       @chrisnkuno
+
+# Anything that can authorize, authenticate, rate-limit, or send on a real
+# person's behalf gets an explicit review requirement, so a change here can
+# never ride along unnoticed in a larger pull request.
+/lib/admin-auth.ts      @chrisnkuno
+/lib/founder-auth.ts    @chrisnkuno
+/lib/password.ts        @chrisnkuno
+/lib/totp.ts            @chrisnkuno
+/lib/compliance.ts      @chrisnkuno
+/lib/signup-security.ts @chrisnkuno
+/app/api/               @chrisnkuno
+/convex/                @chrisnkuno
+
+# Supply chain and deployment surface.
+/package.json           @chrisnkuno
+/bun.lock               @chrisnkuno
+/next.config.ts         @chrisnkuno
+/.github/               @chrisnkuno

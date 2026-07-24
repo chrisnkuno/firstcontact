@@ -134,12 +134,27 @@ bun run check
 
 `bun run check` runs typechecking, tests, lint, and a production build. `git diff --check` remains a separate Git check.
 
+### What the tests cover
+
+CI splits these into separate jobs so a failure names the stage that broke.
+
+| Suite | What it protects |
+|---|---|
+| `api-send`, `api-signups`, `api-admin-login` | That the HTTP routes enforce the policy, not just that the policy functions are correct in isolation — including that a fully valid, human-approved message is still refused while the operator flag is off, and that no failure path ever hands out a session cookie |
+| `compliance`, `signup`, `signup-security`, `matching` | The pure policy, validation, origin-trust, and ranking contracts |
+| `outreach-math`, `portfolio-math`, `network-stats` | The arithmetic behind `/plan`, `/pacing`, and the homepage signal bars |
+| `totp` | RFC 6238 vectors for the hand-rolled MFA implementation |
+| `economics-flywheel`, `world-signal` | The homepage diagrams, including geometry invariants and that every map marker matches its city's true Mercator projection |
+| `contrast` | That every small-text colour in `globals.css` still clears WCAG AA, measured from the stylesheet itself |
+
 Other useful commands:
 
 | Command | Purpose |
 |---|---|
 | `bun run dev` | Start the Next.js development server |
 | `bun run test:watch` | Run Vitest in watch mode |
+| `bun run test:coverage` | Run the suite with a V8 coverage report |
+| `bun audit` | Check installed dependencies against known advisories |
 | `bun run convex:dev` | Start or configure a Convex development deployment |
 | `bun run convex:deploy` | Deploy Convex functions |
 | `bun run map:build` | Rebuild the optimized world map asset |
@@ -312,7 +327,7 @@ lib/password.ts         scrypt password hashing for techadmin accounts
 lib/totp.ts             Self-contained RFC 6238 TOTP for techadmin MFA
 lib/admin-auth.ts       Techadmin session issuance/verification
 lib/admin-data.ts       Server-side reads for the techadmin dashboard
-tests/                  Signup, compliance, matching, math, and totp tests
+tests/                  Route, component, policy, math, crypto, and contrast tests
 docs/                   Architecture, operations, compliance, and roadmap
 scripts/                Repository maintenance, asset, and admin-bootstrap scripts
 ```
