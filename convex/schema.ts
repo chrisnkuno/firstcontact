@@ -115,6 +115,11 @@ export default defineSchema({
   // so a leak here can never be used to reach the techadmin surface.
   founderAccounts: defineTable({
     email: v.string(),
+    // Optional operator-provisioned link for another member of the same
+    // organization. The public login flow cannot set or change this value;
+    // founder:createAccount requires the server-only founder action secret
+    // and verifies that the target signup exists first.
+    signupEmail: v.optional(v.string()),
     passwordHash: v.string(),
     createdAt: v.number(),
     lastLoginAt: v.optional(v.number()),

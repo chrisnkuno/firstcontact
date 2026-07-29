@@ -3,7 +3,7 @@
 // way to originate a new signup.
 //
 // Usage:
-//   node --env-file=.env.local scripts/create-founder-account.mjs <email> [password]
+//   node --env-file=.env.local scripts/create-founder-account.mjs <email> [password] [--signup-email=existing-signup@example.com]
 //
 // Requires CONVEX_URL (or NEXT_PUBLIC_CONVEX_URL) and FOUNDER_ACTION_SECRET
 // — the same secret configured with `bunx convex env set FOUNDER_ACTION_SECRET`
@@ -23,11 +23,15 @@ function hashPassword(password) {
 
 const email = process.argv[2];
 if (!email) {
-  console.error("Usage: node --env-file=.env.local scripts/create-founder-account.mjs <email> [password]");
+  console.error("Usage: node --env-file=.env.local scripts/create-founder-account.mjs <email> [password] [--signup-email=existing-signup@example.com]");
   process.exit(1);
 }
 
-const password = process.argv[3] ?? randomBytes(18).toString("base64url");
+const optionalArgs = process.argv.slice(3);
+const signupEmailArg = optionalArgs.find((argument) => argument.startsWith("--signup-email="));
+const signupEmail = signupEmailArg?.slice("--signup-email=".length).trim().toLowerCase() || undefined;
+const suppliedPassword = optionalArgs.find((argument) => !argument.startsWith("--signup-email="));
+const password = suppliedPassword ?? randomBytes(18).toString("base64url");
 const convexUrl = process.env.CONVEX_URL ?? process.env.NEXT_PUBLIC_CONVEX_URL;
 const founderSecret = process.env.FOUNDER_ACTION_SECRET;
 
@@ -47,6 +51,7 @@ try {
   const result = await client.mutation(createAccount, {
     founderSecret,
     email,
+    ...(signupEmail ? { signupEmail } : {}),
     passwordHash: hashPassword(password),
   });
 

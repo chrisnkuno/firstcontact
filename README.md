@@ -322,6 +322,24 @@ The overall `mode` is `configured` only when the main provider variables are pre
 
 There is no password-reset flow yet — re-run the bootstrap script with the same email to reset a forgotten password, and no MFA-recovery/backup-codes flow — losing the authenticator device currently requires an operator to reset the account by hand in the Convex dashboard. This is a deliberately narrow, single-role (`techadmin`) auth system, not the full multi-tenant `@convex-dev/auth` integration referenced in [Launch readiness](docs/LAUNCH_READINESS.md) for founder/investor accounts — that remains a separate, unbuilt piece of work.
 
+## Participant status access
+
+`/status` is a separate, low-privilege sign-in for an existing `interestSignups` record. It shows only that record’s real pipeline status and submitted context; it does not activate investor discovery, outreach, catalogue publication, admin access, or the intended full multi-tenant workspace.
+
+Create or reset the primary signup holder:
+
+```bash
+node --env-file=.env.local scripts/create-founder-account.mjs founder@example.com
+```
+
+An operator may provision another verified organization member against the same existing signup without fabricating a second signup or consent record:
+
+```bash
+node --env-file=.env.local scripts/create-founder-account.mjs member@example.com --signup-email=founder@example.com
+```
+
+Both operations require the server-only `FOUNDER_ACTION_SECRET`. Passwords are salted-scrypt hashes at rest and generated passwords are printed once. A linked member can read only the explicitly linked signup record; the browser cannot create or change membership links.
+
 ## Provider adapters
 
 ### Exa discovery

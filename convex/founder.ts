@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { normalizeAccountEmail, resolveSignupEmail } from "../lib/founder-membership";
 
 // Every function below is only ever called from a Next.js server route, but
 // Convex deployment URLs are effectively public — so each one is still
@@ -21,14 +22,20 @@ function requireFounderSecret(provided: string) {
 // record to already exist — this is a login for someone already in the
 // pipeline, never a way to originate a new signup.
 export const createAccount = mutation({
-  args: { founderSecret: v.string(), email: v.string(), passwordHash: v.string() },
+  args: {
+    founderSecret: v.string(),
+    email: v.string(),
+    signupEmail: v.optional(v.string()),
+    passwordHash: v.string(),
+  },
   handler: async (ctx, args) => {
     requireFounderSecret(args.founderSecret);
-    const email = args.email.trim().toLowerCase();
+    const email = normalizeAccountEmail(args.email);
+    const signupEmail = resolveSignupEmail(email, args.signupEmail);
 
     const signup = await ctx.db
       .query("interestSignups")
-      .withIndex("by_email", (query) => query.eq("email", email))
+      .withIndex("by_email", (query) => query.eq("email", signupEmail))
       .unique();
     if (!signup) throw new Error("No interestSignups record exists for this email yet");
 
@@ -38,12 +45,16 @@ export const createAccount = mutation({
       .unique();
 
     if (existing) {
-      await ctx.db.patch(existing._id, { passwordHash: args.passwordHash });
+      await ctx.db.patch(existing._id, {
+        passwordHash: args.passwordHash,
+        signupEmail: signupEmail === email ? undefined : signupEmail,
+      });
       return { id: existing._id, created: false };
     }
 
     const id = await ctx.db.insert("founderAccounts", {
       email,
+      signupEmail: signupEmail === email ? undefined : signupEmail,
       passwordHash: args.passwordHash,
       createdAt: Date.now(),
     });
@@ -160,7 +171,7 @@ export const getMyStatus = query({
 
     const signup = await ctx.db
       .query("interestSignups")
-      .withIndex("by_email", (query) => query.eq("email", account.email))
+      .withIndex("by_email", (query) => query.eq("email", resolveSignupEmail(account.email, account.signupEmail)))
       .unique();
     if (!signup) return null;
 
