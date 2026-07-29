@@ -43,6 +43,20 @@ export default function Home() {
 
       <EconomicsFlywheel />
 
+      <section className="capital-research-callout section-shell" aria-labelledby="capital-research-heading">
+        <div>
+          <span>NEW RESEARCH / THE FULL CAPITAL LIFECYCLE</span>
+          <h2 id="capital-research-heading"><T>Different capital.</T><br /><T>Different jobs.</T></h2>
+        </div>
+        <div>
+          <p><T>See how angels, venture capital, philanthropy and DFIs, growth equity, private credit, private equity, search funds, strategic buyers, and secondaries can work as one responsible path from first risk to recycled liquidity.</T></p>
+          <div className="capital-research-tags" aria-label="Capital types covered">
+            {["ANGELS", "VENTURE", "PHILANTHROPY", "GROWTH", "CREDIT", "PRIVATE EQUITY", "BUYERS", "SECONDARIES"].map((item) => <span key={item}>{item}</span>)}
+          </div>
+          <Link className="button button-dark" href="/research/private-equity"><T>Read the capital lifecycle brief</T> <ArrowRight size={16} /></Link>
+        </div>
+      </section>
+
       <section className="model section-shell" id="model">
         <div className="section-heading"><span>01 / THE MODEL</span><h2><T>From local context</T><br /><T>to global signal.</T></h2><p><T>Automation does the research and repetitive work. People retain agency at every consequential step.</T></p></div>
         <div className="step-grid">
@@ -87,7 +101,7 @@ export default function Home() {
         <span>MAKE THE FIRST CONTACT</span><h2><T>Your geography should be context.</T><br /><em><T>Not a constraint.</T></em></h2>
         <div><Link className="button button-light" href="/signup"><T>Create your profile</T> <ArrowRight size={18} /></Link><Link className="button button-outline" href="/catalogue"><T>Browse the catalogue</T></Link></div>
       </section>
-      <footer className="footer section-shell"><div><strong>FIRSTCONTACT</strong><p><T>Open infrastructure for capital access.</T><br /><T>Built with care, from everywhere.</T></p></div><div><span>PRODUCT</span><Link href="/workspace"><T>Founder workspace</T></Link><Link href="/catalogue"><T>VC catalogue</T></Link><Link href="/signup"><T>Join FirstContact</T></Link><Link href="/status"><T>Participant login</T></Link></div><div><span>PROJECT + POLICIES</span><a href="https://github.com/chrisnkuno/firstcontact" target="_blank" rel="noreferrer">GitHub ↗</a><Link href="/responsible-outreach"><T>Responsible outreach</T></Link><Link href="/privacy"><T>Privacy</T></Link><Link href="/terms"><T>Terms</T></Link><Link href="/security"><T>Security</T></Link></div><p className="license">MIT · FirstContact contributors</p></footer>
+      <footer className="footer section-shell"><div><strong>FIRSTCONTACT</strong><p><T>Open infrastructure for capital access.</T><br /><T>Built with care, from everywhere.</T></p></div><div><span>PRODUCT</span><Link href="/workspace"><T>Founder workspace</T></Link><Link href="/catalogue"><T>VC catalogue</T></Link><Link href="/research/private-equity"><T>Capital lifecycle research</T></Link><Link href="/signup"><T>Join FirstContact</T></Link><Link href="/status"><T>Participant login</T></Link></div><div><span>PROJECT + POLICIES</span><a href="https://github.com/chrisnkuno/firstcontact" target="_blank" rel="noreferrer">GitHub ↗</a><Link href="/responsible-outreach"><T>Responsible outreach</T></Link><Link href="/privacy"><T>Privacy</T></Link><Link href="/terms"><T>Terms</T></Link><Link href="/security"><T>Security</T></Link></div><p className="license">MIT · FirstContact contributors</p></footer>
     </main>
   );
 }

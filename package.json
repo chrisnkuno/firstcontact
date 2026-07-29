@@ -26,6 +26,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "map:build": "node scripts/build-world-map.mjs",
+    "research:pdf": "node scripts/build-private-equity-pdf.mjs",
     "check": "tsc --noEmit --incremental false && vitest run && eslint . && next build",
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy"

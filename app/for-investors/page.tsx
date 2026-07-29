@@ -39,6 +39,18 @@ export default function ForInvestorsPage() {
         </Link>
       </p>
 
+      <h2>Explore the full capital lifecycle</h2>
+      <p>
+        Our research examines angels, venture capital, philanthropy and DFIs, growth equity, credit, private equity, search funds,
+        strategic buyers, and secondaries as one proposed capital-and-ownership system. It is a product direction—not a live
+        acquisition-matching capability.
+      </p>
+      <p>
+        <Link className="button button-outline-dark" href="/research/private-equity">
+          Read the capital lifecycle brief <ArrowRight size={16} />
+        </Link>
+      </p>
+
       <h2>What you will not find here</h2>
       <ul>
         <li>No purchased contact lists or resold data — every profile is founder-approved for catalogue visibility.</li>

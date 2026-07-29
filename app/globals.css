@@ -1410,6 +1410,121 @@ button {
   font-family: var(--font-mono);
 }
 
+.research-boundary {
+  margin: 32px 0;
+  padding: 20px 22px;
+  border: 1px solid #c5cec8;
+  background: #f5f7f2;
+}
+
+.research-boundary strong {
+  font: 600 10px var(--font-mono);
+  letter-spacing: .12em;
+  color: #234536;
+}
+
+.research-boundary p {
+  margin-bottom: 0;
+}
+
+.capital-chain {
+  margin: 36px 0;
+  padding: 25px;
+  border-left: 3px solid var(--acid);
+  background: #14251e;
+  color: #eff8ee;
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.research-table-wrap {
+  overflow-x: auto;
+  margin: 24px 0 34px;
+}
+
+.research-table {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.research-table-wide {
+  min-width: 980px;
+}
+
+.capital-research-callout {
+  padding-top: 72px;
+  padding-bottom: 72px;
+  display: grid;
+  grid-template-columns: .85fr 1.15fr;
+  gap: clamp(36px,7vw,110px);
+  background: #edf0e9;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.capital-research-callout>div>span {
+  font: 600 9px var(--font-mono);
+  letter-spacing: .13em;
+  color: #5f7067;
+}
+
+.capital-research-callout h2 {
+  margin: 20px 0 0;
+  font-size: clamp(34px,4vw,60px);
+  line-height: 1.02;
+  letter-spacing: -.055em;
+  font-weight: 500;
+}
+
+.capital-research-callout p {
+  max-width: 650px;
+  margin: 0 0 24px;
+  color: #526159;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+.capital-research-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 28px;
+}
+
+.capital-research-tags span {
+  padding: 7px 9px;
+  border: 1px solid #b6c1ba;
+  font: 600 8px var(--font-mono);
+  letter-spacing: .08em;
+  color: #385046;
+}
+
+@media(max-width:680px) {
+  .capital-research-callout {
+    grid-template-columns: 1fr;
+    padding-top: 52px;
+    padding-bottom: 52px;
+  }
+}
+
+.research-table th,
+.research-table td {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.research-table th {
+  background: #14251e;
+  color: white;
+  font: 600 10px var(--font-mono);
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
 .page-slide {
   min-height: 100vh;
 }

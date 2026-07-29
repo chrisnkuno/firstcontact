@@ -81,6 +81,7 @@ See [Launch readiness](docs/LAUNCH_READINESS.md) before treating any part of the
 | `/catalogue` | Demonstrates consent-based company discovery | Fictional profiles; "Express interest" persists a real signal to Convex |
 | `/plan` | Founder outreach funnel planner: how many investor contacts a raise requires, run backward from the goal | Real math over user-editable assumptions, plus a live Convex network scorecard |
 | `/pacing` | Investor portfolio pacing planner: how many companies to review/meet to hit a portfolio target | Real math over user-editable assumptions, plus a live Convex catalogue-interest scorecard |
+| `/research/private-equity` | Comprehensive global capital-lifecycle brief spanning angels through recycled liquidity | Public research; proposed direction, not a live matching capability |
 | `/how-it-works` | Expands the four-step model, with real-vs-preview status per step | Public content |
 | `/system` | Expands the four accountable system layers (discover/interpret/control/learn) | Public content |
 | `/principles` | Expands the four founding principles | Public content |
@@ -94,6 +95,88 @@ See [Launch readiness](docs/LAUNCH_READINESS.md) before treating any part of the
 | `/api/translate` | Translates UI copy for the language switcher | Echoes input back unchanged without `OPENAI_API_KEY` |
 
 Every page also offers a language switcher (English, French, Spanish, Portuguese, Swahili, Arabic, Bengali) that machine-translates on-screen copy through `/api/translate`, aimed at widening who can realistically use the catalogue and signup flow beyond English speakers.
+
+## Research direction: the global capital lifecycle
+
+The complete, source-linked analysis is available as:
+
+- the [`/research/private-equity`](https://firstcontact-tau.vercel.app/research/private-equity) project page;
+- [the repository research brief](docs/PRIVATE_EQUITY_RESEARCH.md); and
+- [the downloadable PDF](public/firstcontact-private-equity-research.pdf).
+
+The research finds that private equity is a valid and potentially important extension to FirstContact alongside angels, venture capital, philanthropy, development finance, credit, search funds, and strategic buyers—but not as another entry in one undifferentiated investor list. Each form of capital solves a different company state.
+
+### What the model adds
+
+- **Growth equity** can finance established companies seeking expansion, operational improvement, or new markets.
+- **Buyout and turnaround capital** can acquire controlling stakes or entire recoverable businesses.
+- **Replacement capital and secondaries** can give founders, angels, and VCs liquidity that can be recycled into new companies.
+- **Search funds, independent sponsors, and micro-PE** can bring operator-led acquisition to smaller profitable businesses.
+- **Strategic corporate buyers** are essential exit participants and should be modeled alongside PE firms.
+- **Catalytic philanthropy and DFIs** can fund justified readiness, technical-assistance, first-loss, guarantee, or market-building gaps without subsidising commercial acquisitions that would happen anyway.
+
+| Capital type | Best fit | Primary ecosystem role |
+|---|---|---|
+| Philanthropy and grants | Public goods, research, ecosystem infrastructure, excluded or pre-commercial innovators | Preparation, inclusion, shared infrastructure, and justified catalytic risk |
+| Angels and syndicates | Formation, pre-seed, first product, first customers | First conviction, local knowledge, mentoring, and early credibility |
+| Venture capital | Innovative young companies capable of rapid, outsized growth | Long-term risk equity, governance, hiring, networks, and follow-on capital |
+| Growth equity | Proven revenue and a repeatable model ready to scale | Go-to-market expansion, systems, market entry, and selective early-holder liquidity |
+| Private credit | Predictable cash flow or assets capable of repayment | Growth, working capital, or acquisition finance without mandatory dilution |
+| SME and impact PE | Established businesses needing scale, succession, governance, or transformation | Operating improvement, recapitalisation, ownership transition, and exit readiness |
+| Search funds and independent sponsors | One durable, usually profitable succession-stage business | Owner liquidity plus a dedicated new operator |
+| Strategic buyers | Companies with product, customer, talent, supply-chain, or geographic synergy | Distribution, integration, and direct partial or full exits |
+| Secondaries and continuation capital | Existing holders needing liquidity before a company sale | Shareholder and fund liquidity without forcing an operating-company exit |
+| DFIs and public finance | Risk, tenor, currency, or pioneering gaps blocking private investment | Guarantees, standards, technical assistance, and market creation |
+
+The lifecycle is:
+
+```text
+Angels
+  → VC
+  → growth equity
+  → PE / search funds
+  → strategic buyers / secondaries
+  → recycled capital
+```
+
+This can increase ecosystem liquidity through partial founder sales, full acquisitions, early-investor secondaries, recapitalisations that mix secondary and primary capital, operational value creation, and stronger exit readiness. It cannot guarantee liquidity or returns. “10× the value” is an ambition—not a platform promise, matching assumption, or verified outcome.
+
+### Responsible product boundary
+
+The research page and PDF are public documentation. They do **not** mean that FirstContact currently provides PE matching, acquisition execution, due diligence, investment advice, or verified buyer mandates.
+
+A future implementation should use distinct opportunity paths:
+
+| Path | Appropriate capital |
+|---|---|
+| Build | Angels, pre-seed and seed VC, grants |
+| Scale | VC, growth equity, private credit |
+| Transform | SME PE, impact PE, search funds, independent sponsors |
+| Exit or succeed | Strategic buyers, PE buyers, management buyouts, secondaries |
+
+PE and acquisition matching would require hard, source-backed fields beyond the current stage/sector/geography score:
+
+- primary capital, partial secondary, recapitalisation, majority sale, or full acquisition;
+- acceptable ownership percentage and control rights;
+- revenue, EBITDA, profitability, enterprise-value, and equity-check ranges;
+- leverage policy and operating history;
+- founder willingness to remain, transition, or exit;
+- succession, governance, reporting, and data-room readiness;
+- specific value-creation capabilities;
+- target holding period and credible exit routes;
+- country, currency, regulatory, and jurisdiction restrictions;
+- employment, impact, and responsible-ownership commitments; and
+- evidence for each fund or investment vehicle’s mandate.
+
+Matching must operate at the **fund or investment-vehicle level**, not only at the firm level. One global PE firm can manage vehicles with materially different geographies, deal sizes, sectors, control requirements, and holding periods.
+
+The global system must also represent country eligibility, fund domicile, sanctions and foreign-ownership restrictions, transaction currency and FX risk, local presence, responsible deal team, fund vintage and active period, language, decision location, verified source date, and whether a provider makes direct investments, fund commitments, co-investments, grants, guarantees, credit, or advisory support.
+
+The responsible sequence is: classify the actual need; apply hard eligibility gates; assess company and ownership readiness; rank value-add fit; review leverage, control, employment, mission, community, sanctions, corruption, and privacy risks; require human approval; and preserve every source, review, approval, suppression, and outcome in Convex.
+
+Success is measured by verified mandates, qualified matches accepted by both sides, appropriate time-to-capital, primary capital mobilised, secondary liquidity created, responsible dilution and control outcomes, operating and governance improvement, responsible exits, recycled capital, philanthropic additionality, and harms—not by investor counts or messages sent.
+
+The complete brief documents the supporting evidence from Invest Europe, IFC, AVCA, IESE, and OECD; the role and limits of philanthropy; search-fund relevance; value-creation mechanisms; platform changes; and risks such as excessive leverage, destructive cost cutting, founder loss of control, mission drift, forced exits, currency exposure, and unverified operating claims.
 
 ## Local development
 
@@ -372,6 +455,8 @@ Security issues should follow [SECURITY.md](SECURITY.md), not a public issue.
 - [Deployment and provider setup](docs/DEPLOYMENT.md)
 - [Launch-readiness status](docs/LAUNCH_READINESS.md)
 - [Product roadmap](docs/ROADMAP.md)
+- [Global capital lifecycle research](docs/PRIVATE_EQUITY_RESEARCH.md)
+- [Private equity research PDF](public/firstcontact-private-equity-research.pdf)
 - [World map data and attribution](docs/MAP_DATA.md)
 - [Contributing](CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
