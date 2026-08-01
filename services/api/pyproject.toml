@@ -9,7 +9,7 @@ dependencies = [
   "httpx==0.28.1",
   "pydantic==2.11.7",
   "pydantic-settings==2.10.1",
-  "uvicorn[standard]==0.35.0",
+  "uvicorn[standard]==0.52.0",
 ]
 
 [dependency-groups]
