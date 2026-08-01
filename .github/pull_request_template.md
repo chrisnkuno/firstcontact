@@ -11,6 +11,7 @@ Describe the user-visible or operational outcome.
 ## Verification
 
 - [ ] `bun run check`
+- [ ] `bun run api:check` when FastAPI or workflow code changed
 - [ ] Preview and configured behavior remain clearly separated
 - [ ] Responsive behavior checked where UI changed
 - [ ] No secrets or real founder/contact data included

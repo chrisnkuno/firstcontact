@@ -5,6 +5,15 @@ version: 2
 # next install. Related packages are grouped because they have to move in
 # lockstep — a React bump that leaves @types/react behind will not typecheck.
 updates:
+  - package-ecosystem: "pip"
+    directory: "/services/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(api-deps)"
+
   - package-ecosystem: "npm"
     directory: "/"
     schedule:

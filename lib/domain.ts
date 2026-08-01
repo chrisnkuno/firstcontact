@@ -130,9 +130,88 @@ export type Match = Investor & {
 
 export type CampaignStatus = "draft" | "review" | "approved" | "running" | "paused" | "complete";
 
+export const organizationRoles = ["owner", "reviewer", "member"] as const;
+export const campaignStatuses = ["draft", "review", "approved", "running", "paused", "complete"] as const;
+
+export const organizationCreateSchema = z.object({
+  name: z.string().trim().min(2).max(120),
+  slug: z.string().trim().toLowerCase().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).min(2).max(80),
+});
+
+export const campaignCreateSchema = z.object({
+  organizationId: z.string().trim().min(1).max(100),
+  startupProfileId: z.string().trim().min(1).max(100),
+  name: z.string().trim().min(2).max(120),
+  dailyLimit: z.number().int().min(1).max(25),
+});
+
+export const campaignUpdateSchema = z.object({
+  campaignId: z.string().trim().min(1).max(100),
+  name: z.string().trim().min(2).max(120).optional(),
+  dailyLimit: z.number().int().min(1).max(25).optional(),
+}).refine((value) => value.name !== undefined || value.dailyLimit !== undefined, {
+  message: "At least one campaign field is required",
+});
+
 export type PipelineEvent = {
   id: string;
   type: "discovered" | "matched" | "drafted" | "approved" | "sent" | "delivered" | "replied" | "suppressed";
   label: string;
   timestamp: string;
 };
+
+export const workflowKinds = ["investor_research"] as const;
+export const workflowRunStatuses = ["queued", "running", "succeeded", "blocked", "failed", "cancelled"] as const;
+export const workflowStepStatuses = ["pending", "leased", "running", "succeeded", "blocked", "failed", "cancelled"] as const;
+export const workflowOutputTypes = ["research_plan", "discovery", "evidence", "normalization", "matching", "draft"] as const;
+
+export const workflowRunRequestSchema = z.object({
+  campaignId: z.string().trim().min(1).max(100),
+  kind: z.enum(workflowKinds),
+  idempotencyKey: z.string().trim().min(16).max(256),
+  budgetUsd: z.number().positive().max(500),
+}).strict();
+
+export const sourceManifestItemSchema = z.object({
+  url: httpUrl,
+  capturedAt: z.number().int().nonnegative(),
+  contentSha256: z.string().regex(/^[a-f0-9]{64}$/),
+});
+
+export const workerResultEnvelopeSchema = z.object({
+  runId: z.string().trim().min(1).max(100),
+  stepId: z.string().trim().min(1).max(100),
+  attempt: z.number().int().positive().max(10),
+  templateVersion: z.string().trim().min(1).max(100),
+  workerVersion: z.string().trim().min(1).max(100),
+  status: z.enum(["succeeded", "blocked", "failed"]),
+  outputType: z.enum(workflowOutputTypes),
+  artifactSha256: z.string().regex(/^[a-f0-9]{64}$/),
+  artifact: z.record(z.string(), z.unknown()),
+  sourceManifest: z.array(sourceManifestItemSchema).max(100),
+  usage: z.object({
+    durationMs: z.number().int().nonnegative(),
+    providerCalls: z.number().int().nonnegative().max(1_000),
+    inputBytes: z.number().int().nonnegative().max(20_000_000),
+    outputBytes: z.number().int().nonnegative().max(20_000_000),
+  }),
+  blocker: z.object({
+    code: z.string().trim().min(1).max(100),
+    safeMessage: z.string().trim().min(1).max(500),
+    retryable: z.boolean(),
+  }).optional(),
+}).superRefine((value, context) => {
+  if (value.status !== "succeeded" && !value.blocker) {
+    context.addIssue({ code: "custom", path: ["blocker"], message: "Blocked and failed results require a safe blocker" });
+  }
+  if (value.status === "succeeded" && value.blocker) {
+    context.addIssue({ code: "custom", path: ["blocker"], message: "Successful results cannot include a blocker" });
+  }
+});
+
+export type WorkflowRunRequest = z.infer<typeof workflowRunRequestSchema>;
+export type WorkerResultEnvelope = z.infer<typeof workerResultEnvelopeSchema>;
+export type OrganizationRole = typeof organizationRoles[number];
+export type OrganizationCreate = z.infer<typeof organizationCreateSchema>;
+export type CampaignCreate = z.infer<typeof campaignCreateSchema>;
+export type CampaignUpdate = z.infer<typeof campaignUpdateSchema>;

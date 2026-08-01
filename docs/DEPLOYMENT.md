@@ -1,5 +1,17 @@
 # Deployment
 
+## FastAPI workflow backend
+
+The Next.js deployment does not run the Python workflow service. Deploy `services/api` as a separate long-running FastAPI service plus a separate dispatcher/worker process from the same package.
+
+Required server-only variables are `CONVEX_URL`, `WORKFLOW_ACTION_SECRET`, and `FASTAPI_SERVICE_TOKEN`. User workflow routes additionally require `OIDC_ISSUER_URL` and `OIDC_AUDIENCE`, configured identically for FastAPI and Convex. Set the same `WORKFLOW_ACTION_SECRET` in the Convex deployment. To activate sandbox research, also set `EXECUTION_MODE=e2b`, `E2B_API_KEY`, a reviewed `E2B_TEMPLATE` ID, `WORKER_GATEWAY_URL`, and `EXA_API_KEY`. Never use `NEXT_PUBLIC_*` for these values.
+
+The API process runs `uvicorn app.main:app`; the continuous worker process runs `python -m app.worker` with graceful SIGINT/SIGTERM shutdown. `python -m app.worker --once` is available for scheduled dispatch or smoke tests. Expired leases and user cancellation trigger best-effort E2B cleanup; signed E2B lifecycle webhooks and an external orphan-cleanup runbook are still required for production defense in depth.
+
+`services/api/Dockerfile` builds the shared API/worker image from the locked Python dependency graph. Deploy the default command for the API and override it with `python -m app.worker` for the dispatcher. The API is the only process that needs inbound traffic.
+
+Probe `/healthz` for liveness and `/readyz` for required provider readiness. Keep `EXECUTION_MODE=disabled` until the E2B template and data-retention path have been reviewed.
+
 The maintained deployment is available at [firstcontact-tau.vercel.app](https://firstcontact-tau.vercel.app). The signup path uses Convex persistence, while catalogue, workspace, investor discovery, drafting, and outreach remain explicitly labeled preview or blocked until their respective production controls are configured.
 
 ## Environments

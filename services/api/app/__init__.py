@@ -1,0 +1,1 @@
+"""FirstContact FastAPI backend."""

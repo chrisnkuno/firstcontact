@@ -51,6 +51,21 @@ jobs:
           path: coverage/
           retention-days: 14
 
+  api:
+    name: FastAPI checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.10.12"
+          enable-cache: true
+      - run: uv sync --frozen --project services/api
+      - run: uv run --project services/api ruff check services/api/app services/api/tests
+      - run: uv run --project services/api mypy services/api/app services/api/tests
+      - run: uv run --project services/api pytest services/api/tests
+
   build:
     name: Production build
     runs-on: ubuntu-latest

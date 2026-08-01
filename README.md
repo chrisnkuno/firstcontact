@@ -8,7 +8,7 @@
 
 [Public deployment](https://firstcontact-tau.vercel.app) · [Join FirstContact](https://firstcontact-tau.vercel.app/signup) · [Architecture](docs/ARCHITECTURE.md) · [Deployment guide](docs/DEPLOYMENT.md)
 
-FirstContact is a reference application for building a more transparent fundraising pipeline. It combines:
+FirstContact is an open-source product and backend foundation for building a more transparent fundraising pipeline. It combines:
 
 - private interest onboarding for startups, institutions, investors, founders, operators, advisors, and researchers;
 - source-backed investor discovery;
@@ -28,7 +28,9 @@ Choose the path that matches what you want to do:
 |---|---|
 | Explore the product | Run the app with no provider keys and use its labeled preview data |
 | Collect real signup interest | Configure Convex and the shared signup ingestion secret |
-| Add real investor research | Configure Exa, then add durable normalization and review |
+| Develop the workflow backend | Configure Convex, start FastAPI, and use the service-token-protected workflow API |
+| Execute isolated research jobs | Configure E2B and run the FastAPI dispatcher; the implemented worker currently produces a research plan, not investor records |
+| Add real investor discovery | Build the scoped FastAPI provider gateway, then connect Exa normalization and review |
 | Generate factual drafts | Configure OpenAI and keep human review mandatory |
 | Send real email | Complete authentication, authorization, compliance, suppression, webhook, and deliverability work first |
 | Adapt the project for your community | Fork it, replace the branding and policies, and review the MIT license |
@@ -63,6 +65,7 @@ A signup creates an `interestSignups` record only. It does **not** automatically
 
 ### Available but not production-complete
 
+- The FastAPI backend in `services/api` implements OIDC-forwarded, membership-checked workflow creation; durable Convex leasing and budgets; a separate dispatcher; scoped E2B execution; and an Exa gateway that persists source evidence as unreviewed candidates. Browser OIDC, reviewed normalization, drafting, workspace wiring, deployment, and delivery are not yet active.
 - Exa discovery can return live search results, but those results are not yet normalized or persisted as reviewed investor records.
 - OpenAI can produce structured drafts from supplied facts, but the route needs deployment-specific authentication, usage limits, and audit persistence.
 - Resend delivery is fail-closed behind an operator token, an explicit outbound flag, approval, source, jurisdiction, suppression, postal-identity, and unsubscribe checks.
@@ -184,6 +187,8 @@ The complete brief documents the supporting evidence from Invest Europe, IFC, AV
 
 - [Node.js 22](https://nodejs.org/)
 - [Bun 1.3.14 or newer](https://bun.sh/)
+- [Python 3.12 or 3.13](https://www.python.org/)
+- [uv 0.10.12 or newer](https://docs.astral.sh/uv/)
 
 ### Install and run
 
@@ -191,6 +196,7 @@ The complete brief documents the supporting evidence from Invest Europe, IFC, AV
 git clone https://github.com/chrisnkuno/firstcontact.git
 cd firstcontact
 bun install
+uv sync --project services/api
 cp .env.example .env.local
 bun run dev
 ```
@@ -213,9 +219,10 @@ Or run the combined application checks:
 
 ```bash
 bun run check
+bun run api:check
 ```
 
-`bun run check` runs typechecking, tests, lint, and a production build. `git diff --check` remains a separate Git check.
+`bun run check` runs the Next.js/TypeScript typecheck, tests, lint, and production build. `bun run api:check` runs Ruff, strict mypy, and FastAPI tests. `git diff --check` remains a separate Git check.
 
 ### What the tests cover
 
@@ -229,6 +236,7 @@ CI splits these into separate jobs so a failure names the stage that broke.
 | `totp` | RFC 6238 vectors for the hand-rolled MFA implementation |
 | `economics-flywheel`, `world-signal` | The homepage diagrams, including geometry invariants and that every map marker matches its city's true Mercator projection |
 | `contrast` | That every small-text colour in `globals.css` still clears WCAG AA, measured from the stylesheet itself |
+| FastAPI `test_api`, `test_worker` | Service-token enforcement, truthful health state, actor derivation, leases, minimal sandbox input, safe blockers, retries, digest verification, and non-invented research-plan output |
 
 Other useful commands:
 
@@ -240,6 +248,10 @@ Other useful commands:
 | `bun audit` | Check installed dependencies against known advisories |
 | `bun run convex:dev` | Start or configure a Convex development deployment |
 | `bun run convex:deploy` | Deploy Convex functions |
+| `bun run api:dev` | Start the FastAPI backend on port 8000 |
+| `bun run api:worker` | Run the continuous Convex-backed dispatcher |
+| `bun run api:dispatch` | Claim and execute at most one workflow step, then exit |
+| `bun run api:check` | Run Ruff, strict mypy, and FastAPI tests |
 | `bun run map:build` | Rebuild the optimized world map asset |
 | `bun run start` | Serve an already-built production bundle |
 
@@ -279,6 +291,64 @@ Never prefix `SIGNUP_INGEST_SECRET` or a provider API key with `NEXT_PUBLIC_`. V
 
 Signup limits are enforced atomically in Convex with keyed HMAC digests: a broad address limit protects the service without penalizing a shared office or mobile network after only a few signups, while a tighter address-and-email limit catches repeated submissions. Expired limiter records are deleted by the daily maintenance job. An edge/WAF layer is still recommended at larger scale.
 
+## FastAPI + E2B workflow backend
+
+`services/api` is the implemented Python backend foundation. It is separate from the Next.js process and uses Convex as the durable source of truth.
+
+```text
+service-authenticated FastAPI request
+  → Convex creates an idempotent workflow run and pending step
+  → FastAPI dispatcher reclaims expired leases and atomically claims work
+  → E2B starts a secure sandbox with outbound internet disabled
+  → fixed Python worker receives only the minimum profile fields it needs
+  → FastAPI validates run, step, attempt, schema, size, and artifact SHA-256
+  → Convex stores the terminal artifact and audit event
+```
+
+The dispatcher handles bounded retry scheduling for transient failures. Missing E2B configuration becomes an explicit `blocked` workflow result; it never substitutes preview contacts or synthetic success. Late results cannot advance an expired lease, and the sandbox is killed in `finally` after every completed execution attempt.
+
+The first installed add-on is `investor_research_plan`. It produces bounded search queries, preferred source categories, and hard review gates from stage, sector, geography, and target capital regions. It does **not** call Exa, invent contacts, persist investor matches, draft email, or authorize delivery.
+
+### Start the backend
+
+Configure persistence first:
+
+```bash
+openssl rand -hex 32 # generate WORKFLOW_ACTION_SECRET
+openssl rand -hex 32 # generate a distinct FASTAPI_SERVICE_TOKEN
+bunx convex env set WORKFLOW_ACTION_SECRET
+```
+
+Put the values in `.env.local`, deploy the updated Convex functions, and start the API:
+
+```bash
+bun run convex:deploy
+bun run api:dev
+```
+
+For E2B execution, set `EXECUTION_MODE=e2b`, a server-only `E2B_API_KEY`, and a reviewed `E2B_TEMPLATE` ID. Then run the continuous dispatcher separately:
+
+```bash
+bun run api:worker
+```
+
+The current workflow-create endpoint requires an existing approved/running Convex campaign. The public workspace does not create that campaign yet, and `FASTAPI_SERVICE_TOKEN` must never be sent to browser code. Organization OIDC and identity-derived membership are required before wiring these endpoints to `/workspace`.
+
+Useful backend endpoints:
+
+| Endpoint | Behavior |
+|---|---|
+| `GET /healthz` | Liveness and truthful Convex/E2B capability flags; never returns secrets |
+| `GET /readyz` | Returns 503 when selected persistence/execution dependencies are missing |
+| `GET /v1/addons` | Lists bounded, versioned capabilities; service-token protected |
+| `POST /v1/workflows/runs` | Creates an idempotent Convex workflow for an approved campaign |
+| `GET /v1/workflows/runs/{id}` | Reads durable run, step, blocker, and artifact state |
+| `POST /v1/workflows/runs/{id}/cancel` | Cancels outstanding work and revokes its lease |
+| `POST /internal/v1/dispatcher/once` | Performs one dispatch iteration; service-token protected |
+| `POST /internal/v1/worker/result` | Accepts only a lease-bound, digest-verified worker result |
+
+See [the backend README](services/api/README.md) for container deployment and [the E2B pipeline architecture](docs/E2B_OUTREACH_PIPELINE.md) for the remaining production phases.
+
 ## Environment variables
 
 Copy `.env.example` to `.env.local` for local work. Use separate credentials and Convex deployments for development, staging, and production.
@@ -290,6 +360,21 @@ Copy `.env.example` to `.env.local` for local work. Use separate credentials and
 | `CONVEX_URL` | Server only | Signup persistence | Preferred server-side Convex URL |
 | `NEXT_PUBLIC_CONVEX_URL` | Public | Convex client configuration and health reporting | A deployment URL, not a secret |
 | `SIGNUP_INGEST_SECRET` | Server only | Authorized signup and catalogue-interest ingestion | Must match the Convex environment value; also gates `POST /api/catalogue-interest` |
+| `WORKFLOW_ACTION_SECRET` | Server only | FastAPI-to-Convex workflow mutations | Set the same high-entropy value in FastAPI and Convex; keep distinct from every other secret |
+| `FASTAPI_SERVICE_TOKEN` | Server only | Dispatcher and service-only FastAPI endpoints | Never expose it to a browser; user workflow routes reject this token |
+| `OIDC_ISSUER_URL` | Server only | Organization authentication | Must identify the same OIDC issuer in FastAPI and Convex |
+| `OIDC_AUDIENCE` | Server only | Organization authentication | API audience/application ID expected by Convex |
+| `EXECUTION_MODE` | Server only | Workflow executor selection | `disabled` by default; set `e2b` only after E2B review and configuration |
+| `E2B_API_KEY` | Server only | Creating isolated workflow sandboxes | Used by FastAPI only and never passed into the sandbox |
+| `E2B_TEMPLATE` | Server only | Sandbox base image/template | Use a reviewed template ID in staging/production |
+| `E2B_TEMPLATE_VERSION` | Server only | Artifact provenance | Recorded in every result envelope |
+| `E2B_WORKER_VERSION` | Server only | Worker provenance | Recorded in every result envelope |
+| `E2B_TIMEOUT_SECONDS` | Server only | Sandbox runtime ceiling | Bounded to 30–900 seconds by FastAPI settings |
+| `WORKFLOW_LEASE_SECONDS` | Server only | Durable step lease | Bounded to 30–900 seconds; expired leases are recovered before dispatch |
+| `DISPATCHER_POLL_SECONDS` | Server only | Continuous dispatcher cadence | Bounded to 0.25–60 seconds |
+| `DISPATCHER_ID` | Server only | Lease ownership and diagnostics | Use a stable, non-secret deployment identifier |
+| `WORKER_GATEWAY_URL` | Server only | Scoped E2B-to-FastAPI research calls | HTTPS FastAPI origin; E2B network access is restricted to this host |
+| `EXA_TIMEOUT_SECONDS` | Server only | Provider request ceiling | Bounded to 5–120 seconds |
 | `ADMIN_BOOTSTRAP_SECRET` | Server only | Creating/resetting techadmin accounts | Only used by `scripts/create-admin.mjs`; safe to rotate/remove after the accounts you need exist |
 | `ADMIN_ACTION_SECRET` | Server only | All authenticated `/admin` reads and writes | Must match the Convex environment value; distinct from `SIGNUP_INGEST_SECRET` so its blast radius stays contained |
 | `EXA_API_KEY` | Server only | Live investor discovery | Do not expose the discovery route publicly without auth and budgets |
@@ -307,6 +392,8 @@ Check the effective capability state without revealing credentials:
 
 ```bash
 curl http://localhost:3000/api/health
+curl http://localhost:8000/healthz
+curl -i http://localhost:8000/readyz
 ```
 
 The overall `mode` is `configured` only when the main provider variables are present. That status means “credentials appear configured,” not “the deployment has passed production readiness.”
@@ -385,34 +472,42 @@ Public signup
   → secret-protected Convex mutation
   → private, deduplicated interest record
 
-Authenticated organization (target architecture)
+Implemented workflow foundation
   → approved profile and visibility fields
-  → Exa discovery
-  → source capture, normalization, and deduplication
-  → transparent matching and evidence-constrained draft
+  → FastAPI validates the request; Convex records workflow intent
+  → FastAPI dispatcher leases work and controls E2B
+  → E2B isolated execution produces a bounded research-plan artifact
+  → validated artifact and audit history return to Convex
+
+Planned production extension
+  → scoped Exa discovery and source normalization
+  → transparent matching and evidence-constrained drafting
   → human review
-  → policy and suppression gate
-  → Resend
+  → Convex policy, budget, rate, and suppression gate
+  → FastAPI Resend adapter
   → signed delivery events
   → Convex audit history
 ```
 
 The intended responsibility boundaries are:
 
-- **Convex:** durable product state, tenancy, workflow intent, scheduling, suppressions, and audit history.
+- **Convex:** durable product state, tenancy, workflow intent, leases, suppressions, budgets, and audit history.
+- **FastAPI:** main application backend and orchestrator for authenticated APIs, E2B dispatch, provider gateways, webhooks, streaming progress, retries, and add-ons.
+- **E2B:** elastic isolated execution fabric for research, normalization, evaluation, drafting, and generated artifacts; never approval or delivery authority.
 - **Exa:** replaceable discovery adapter.
 - **OpenAI:** replaceable extraction and drafting adapter.
 - **Resend:** replaceable email transport adapter.
-- **Next.js:** public experience, authenticated application surfaces, server boundaries, and webhooks.
+- **Next.js:** public experience and authenticated application surfaces; production workflow calls move behind FastAPI.
 
 Shared input and policy contracts belong in `lib/domain.ts`. Policy changes should include tests. External providers must never become the source of truth for consent, approval, suppression, or campaign state.
 
-For the table model and workflow invariants, read [Architecture](docs/ARCHITECTURE.md).
+For the table model and workflow invariants, read [Architecture](docs/ARCHITECTURE.md). For implemented status, E2B execution topology, add-on model, optimization strategy, and remaining phases, read [FastAPI + E2B outreach pipeline architecture](docs/E2B_OUTREACH_PIPELINE.md).
 
 ## Repository map
 
 ```text
 app/                    Next.js pages, metadata, and API routes
+services/api/           FastAPI application backend, dispatcher, E2B adapter, contracts, and tests
 components/             Public, signup, catalogue, workspace, and translation UI
 convex/                 Schema, signup persistence, catalogue interest, campaigns, webhooks, and jobs
 lib/domain.ts           Shared Zod validation and TypeScript contracts
@@ -444,9 +539,10 @@ Before operating your own instance:
 3. Configure authentication and prove that users cannot cross organization boundaries.
 4. Keep provider credentials server-side and use separate projects for each environment.
 5. Replace all preview records with consented, source-backed data; never present fictional records as live.
-6. Add shared rate limits, per-tenant budgets, monitoring, deletion workflows, backups, and incident ownership.
-7. Verify domain authentication, unsubscribe, complaint, bounce, suppression, and emergency-pause behavior before enabling email.
-8. Run the full verification gate and a staging pilot with synthetic or explicitly authorized recipients.
+6. Deploy FastAPI API and dispatcher processes separately, keep internal routes edge-restricted, and configure Convex/E2B without exposing service credentials to Next.js.
+7. Add shared rate limits, per-tenant budgets, monitoring, deletion workflows, backups, and incident ownership.
+8. Verify domain authentication, unsubscribe, complaint, bounce, suppression, and emergency-pause behavior before enabling email.
+9. Run both verification gates and a staging pilot with synthetic or explicitly authorized recipients.
 
 This repository provides technical controls and operational starting points, not legal advice or a turnkey authorization to contact people. The operator of each deployment is responsible for its data sources, notices, lawful basis, consent model, deliverability, and local regulations.
 
@@ -468,6 +564,7 @@ Security issues should follow [SECURITY.md](SECURITY.md), not a public issue.
 ## Documentation
 
 - [Architecture and data flow](docs/ARCHITECTURE.md)
+- [FastAPI + E2B production outreach pipeline](docs/E2B_OUTREACH_PIPELINE.md)
 - [Responsible outreach and privacy](docs/COMPLIANCE.md)
 - [Security model](docs/SECURITY.md)
 - [Deployment and provider setup](docs/DEPLOYMENT.md)

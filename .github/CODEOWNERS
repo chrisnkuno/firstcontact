@@ -12,9 +12,11 @@
 /lib/signup-security.ts @chrisnkuno
 /app/api/               @chrisnkuno
 /convex/                @chrisnkuno
+/services/api/          @chrisnkuno
 
 # Supply chain and deployment surface.
 /package.json           @chrisnkuno
+/services/api/pyproject.toml @chrisnkuno
 /bun.lock               @chrisnkuno
 /next.config.ts         @chrisnkuno
 /.github/               @chrisnkuno

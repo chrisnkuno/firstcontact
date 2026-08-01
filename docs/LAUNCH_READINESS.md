@@ -8,6 +8,7 @@ This document separates what is shipped from what requires operator-owned accoun
 - Separate private, outreach-approved, and catalogue-approved data boundaries in the product and schema.
 - Human approval, source, jurisdiction, suppression, sender identity, unsubscribe, authorization, and idempotency gates around delivery.
 - Exa discovery, GPT-5 nano structured drafting, Resend delivery/webhook, and Convex storage integration boundaries.
+- FastAPI API/dispatcher foundation with OIDC-aware user routes, Convex workflow leases, provider budget reservations, scoped Exa gateway, source persistence, bounded retries, and orphan-sandbox reconciliation.
 - Privacy, terms, security, responsible-outreach, architecture, deployment, contribution, and roadmap documentation.
 - Sitemap, robots policy, manifest, social image, custom 404, self-hosted fonts, keyboard focus, reduced-motion behavior, and HTTP security headers.
 - GitHub CI and Vercel production build passing.
@@ -24,6 +25,7 @@ This document separates what is shipped from what requires operator-owned accoun
 | Email | Disabled and unauthorized by default | Resend verified reply-capable domain, SPF/DKIM/DMARC, signed webhook persistence, tested bounce/complaint/unsubscribe handling |
 | Legal operations | Engineering controls and templates | Named controller/operator, monitored privacy contact, jurisdiction matrix, LIA/consent records, DPA/SCC review, retention decisions |
 | Production operations | Health endpoint and Vercel logs | Alerts, error tracking with redaction, backup/restore exercise, deletion runbook, incident ownership, cost alerts |
+| FastAPI + E2B workflow | OIDC/tenant-aware control-plane code and scoped, budgeted Exa discovery path are implemented locally | Choose/configure the browser OIDC provider, deploy a reviewed E2B template plus API/dispatcher, run live staging integration tests, add verified normalization, alerts, and workspace integration |
 | Automatic deployment | Manual Vercel CLI deployment works | Connect GitHub as a Vercel account login connection, then attach `chrisnkuno/firstcontact` to the Vercel project |
 
 ## Math tools and techadmin auth — what's real, what's illustrative, what's missing

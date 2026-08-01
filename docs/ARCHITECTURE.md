@@ -19,7 +19,17 @@ The App Router serves public pages, authenticated workspace surfaces, health rep
 
 ### Convex source of truth
 
-`convex/schema.ts` models tenant state and operational history. Mutations enforce state transitions; actions call external providers; scheduled workflows handle retries and rate limits. Convex recommends recording intent in a mutation and scheduling network side effects, because actions themselves cannot be automatically retried safely.
+`convex/schema.ts` models tenant state and operational history. Mutations enforce state transitions and atomically record workflow intent, leases, budgets, approvals, and delivery gates. In the target architecture, FastAPI claims that durable work and orchestrates external side effects; Convex remains authoritative when API or worker processes restart.
+
+### FastAPI application backend (target architecture)
+
+FastAPI is the proposed main application backend: authenticated product APIs, workflow orchestration, E2B dispatch, provider gateways, streaming progress, signed webhooks, add-on registration, retries, and reconciliation. It runs as separate API and worker processes from one Python codebase. Durable work is always recorded and leased through Convex; FastAPI process memory and `BackgroundTasks` are not the queue.
+
+### E2B execution backend (target architecture)
+
+E2B is the proposed primary isolated execution plane for research, hostile-source parsing, normalization, deduplication, evidence extraction, scoring support, and draft generation. It does not own tenant state, workflow authority, approval, suppression, or delivery. FastAPI claims a durable Convex lease, starts a versioned Python sandbox worker, and validates its callback before a Convex mutation commits the result idempotently.
+
+Resend delivery remains in the FastAPI worker and outside E2B. It is derived from current Convex records after a fresh atomic policy check. This prevents an untrusted source or compromised sandbox from acquiring send authority. See [FastAPI + E2B outreach pipeline architecture](E2B_OUTREACH_PIPELINE.md) for the worker protocol, data-model changes, add-on model, optimization plan, rollout, and verification plan.
 
 ### Public signup boundary
 

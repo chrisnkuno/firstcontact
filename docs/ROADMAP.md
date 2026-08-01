@@ -13,6 +13,8 @@
 ## v0.2 — Secure private beta
 
 - Authenticated organizations and invitations.
+- FastAPI application backend foundation with separate API/dispatcher entrypoints and Convex-authoritative workflow state. **Foundation implemented; organization OIDC and streaming progress remain.**
+- FastAPI-orchestrated, E2B-executed workflow runs with scoped leases, offline Python execution, validated artifacts, retry scheduling, and an add-on manifest. **First research-plan worker implemented; reviewed custom template, provider gateway, continuous dispatch, and orphan cleanup remain.**
 - Durable Exa discovery/normalization workflow with entity deduplication.
 - Source evidence viewer and correction workflow.
 - Draft review diff, approval expiry, and dual suppression checks.
