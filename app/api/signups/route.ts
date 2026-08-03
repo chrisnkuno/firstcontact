@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { NextRequest, NextResponse } from "next/server";
@@ -64,6 +65,34 @@ const submitSignup = makeFunctionReference<
   SignupMutationArgs,
   SignupMutationResult
 >("signups:submit");
+
+const rateLimit = new Map<string, { count: number; resetAt: number }>();
+const WINDOW_MS = 10 * 60 * 1000;
+const MAX_SUBMISSIONS = 5;
+
+function clientKey(request: NextRequest): string | null {
+  const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const address = forwarded || request.headers.get("x-real-ip");
+  // No shared "unknown" bucket: if we can't identify the client, fail open
+  // rather than letting one visitor's attempts lock out every other visitor.
+  if (!address) return null;
+  return createHash("sha256").update(address).digest("hex");
+}
+
+function isRateLimited(key: string | null): boolean {
+  if (!key) return false;
+
+  const now = Date.now();
+  const current = rateLimit.get(key);
+
+  if (!current || current.resetAt <= now) {
+    rateLimit.set(key, { count: 1, resetAt: now + WINDOW_MS });
+    return false;
+  }
+
+  current.count += 1;
+  return current.count > MAX_SUBMISSIONS;
+}
 
 function clientAddress(request: NextRequest) {
   const forwarded = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
