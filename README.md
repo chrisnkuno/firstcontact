@@ -251,8 +251,10 @@ Other useful commands:
 | `bun run api:dev` | Start the FastAPI backend on port 8000 |
 | `bun run api:worker` | Run the continuous Convex-backed dispatcher |
 | `bun run api:dispatch` | Claim and execute at most one workflow step, then exit |
+| `bun run api:test` | Run only the FastAPI pytest suite, without Ruff or mypy |
 | `bun run api:check` | Run Ruff, strict mypy, and FastAPI tests |
 | `bun run map:build` | Rebuild the optimized world map asset |
+| `bun run research:pdf` | Rebuild `public/firstcontact-private-equity-research.pdf` from `docs/PRIVATE_EQUITY_RESEARCH.md` |
 | `bun run start` | Serve an already-built production bundle |
 
 ## Enable persisted signup
@@ -377,6 +379,7 @@ Copy `.env.example` to `.env.local` for local work. Use separate credentials and
 | `EXA_TIMEOUT_SECONDS` | Server only | Provider request ceiling | Bounded to 5–120 seconds |
 | `ADMIN_BOOTSTRAP_SECRET` | Server only | Creating/resetting techadmin accounts | Only used by `scripts/create-admin.mjs`; safe to rotate/remove after the accounts you need exist |
 | `ADMIN_ACTION_SECRET` | Server only | All authenticated `/admin` reads and writes | Must match the Convex environment value; distinct from `SIGNUP_INGEST_SECRET` so its blast radius stays contained |
+| `FOUNDER_ACTION_SECRET` | Server only | Creating/resetting participant `/status` accounts and all authenticated `/status` reads | Must match the Convex environment value; only used by `scripts/create-founder-account.mjs` and the founder-auth session path; distinct from every other secret |
 | `EXA_API_KEY` | Server only | Live investor discovery | Do not expose the discovery route publicly without auth and budgets |
 | `OPENAI_API_KEY` | Server only | Structured draft generation and `/api/translate` | Without it, translation echoes the original text instead of fabricating a translation |
 | `OPENAI_MODEL` | Server only | Draft model selection | Defaults to `gpt-5-nano` |
