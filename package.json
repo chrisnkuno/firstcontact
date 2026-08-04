@@ -47,7 +47,7 @@
     "@fontsource-variable/space-grotesk": "5.3.0",
     "convex": "1.42.3",
     "gsap": "3.15.0",
-    "lucide-react": "1.25.0",
+    "lucide-react": "1.27.0",
     "motion": "12.42.2",
     "next": "16.2.11",
     "openai": "6.48.0",
