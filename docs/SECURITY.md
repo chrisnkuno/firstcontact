@@ -66,10 +66,9 @@ Dependencies are pinned to exact versions so an install without the lockfile
 cannot resolve to something CI never verified, and a CI job fails the build if
 `package.json` and `bun.lock` disagree. `bun audit` runs in CI at
 `--audit-level=high`. Transitive advisories are resolved through `overrides` in
-`package.json` where a compatible fixed release exists; where one does not, the
-advisory is excluded by id in the workflow with the reasoning recorded inline
-rather than being silently downgraded. CodeQL runs on every change to `main` and
-weekly, so a newly published rule is applied to existing code.
+`package.json` where a compatible fixed release exists. CodeQL runs on every
+change to `main` and weekly, so a newly published rule is applied to existing
+code.
 
 ## Secret management
 

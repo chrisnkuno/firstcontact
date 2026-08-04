@@ -36,10 +36,11 @@
     "convex:dev": "convex dev",
     "convex:deploy": "convex deploy"
   },
-  "//overrides": "Transitive dependencies of next/vite carrying known-high advisories, forced to their fixed releases rather than suppressed in the audit. Remove an entry once the parent package requires the fixed version itself. brace-expansion is deliberately NOT overridden here: its only fix is an API break that eslint's minimatch 3.x cannot consume, so it is excluded by advisory id in the CI audit job instead.",
+  "//overrides": "Transitive dependencies of next/vite/eslint carrying known-high advisories, forced to their fixed releases rather than suppressed in the audit. Remove an entry once the parent package requires the fixed version itself.",
   "overrides": {
     "postcss": "8.5.23",
-    "sharp": "0.35.3"
+    "sharp": "0.35.3",
+    "brace-expansion": "1.1.18"
   },
   "//dependencies": "Pinned to exact versions on purpose: a fresh `bun install` without the lockfile must resolve to the versions CI verified, and Dependabot proposes upgrades as reviewable PRs instead of them arriving silently.",
   "dependencies": {

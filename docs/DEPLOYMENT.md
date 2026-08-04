@@ -34,7 +34,12 @@ bunx convex dev
 bunx convex deploy
 ```
 
-The first command creates a development project and generates `convex/_generated`. Configure authentication following the current [Convex Auth documentation](https://docs.convex.dev/auth) and enforce membership checks described in the architecture document before enabling private account data.
+The first command creates a development project and generates `convex/_generated`.
+**Commit those generated files** — TypeScript and `convex-test` need them, and CI
+does not run `convex codegen` (that requires a live deployment). Configure
+authentication following the current [Convex Auth documentation](https://docs.convex.dev/auth)
+and enforce membership checks described in the architecture document before
+enabling private account data.
 
 For public signup ingestion, generate a high-entropy secret and set the identical value on both runtimes:
 

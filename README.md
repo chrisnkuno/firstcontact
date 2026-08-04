@@ -227,6 +227,8 @@ bun run api:check
 ### What the tests cover
 
 CI splits these into separate jobs so a failure names the stage that broke.
+`convex/_generated` is committed so typecheck and Convex tests work without a
+live deployment in CI.
 
 | Suite | What it protects |
 |---|---|

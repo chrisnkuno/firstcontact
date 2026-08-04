@@ -10,6 +10,14 @@ treating any part of the preview as production-ready.
 
 ## [Unreleased]
 
+### Fixed
+
+- CI: commit `convex/_generated` so typecheck and convex-test no longer fail
+  without a Convex deployment; resolve brace-expansion advisories via
+  `overrides` instead of audit ignores; bump Actions off Node 20
+  (`checkout`/`upload-artifact` v5, `setup-uv` v7, CodeQL v4); remove dead
+  in-process signup rate-limit helpers that only produced lint warnings.
+
 ### Added
 
 - Content-Security-Policy, `Strict-Transport-Security`, `Cross-Origin-Resource-Policy`,
