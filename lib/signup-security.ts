@@ -1,10 +1,6 @@
-import { createHmac } from "node:crypto";
-
 type OriginCheck = {
-  configuredOrigin?: string;
+  allowedOrigins: readonly (string | undefined)[];
   origin: string | null;
-  requestOrigin: string;
-  secFetchSite: string | null;
 };
 
 function canonicalOrigin(value?: string | null) {
@@ -16,44 +12,35 @@ function canonicalOrigin(value?: string | null) {
   }
 }
 
-export function isTrustedSignupRequest({
-  configuredOrigin,
-  origin,
-  requestOrigin,
-  secFetchSite,
-}: OriginCheck) {
-  if (secFetchSite === "cross-site") return false;
+/**
+ * Origin allowlist for the public ingestion endpoints.
+ *
+ * These endpoints used to be same-origin Next.js routes, where `Sec-Fetch-Site:
+ * cross-site` was a meaningful rejection. They are now Convex HTTP actions
+ * called from a different origin by design (the static site on GitHub Pages
+ * talks to `*.convex.site`), so every legitimate browser request is
+ * cross-site and that signal no longer separates friend from foe. An explicit
+ * allowlist does.
+ *
+ * A request with no `Origin` header at all is allowed through: browsers always
+ * send it on cross-origin POSTs, so its absence means a non-browser client
+ * (curl, a server-to-server integration), which is not the threat this guard
+ * addresses. Rate limiting, not this check, is what bounds those.
+ */
+export function isTrustedSubmissionOrigin({ allowedOrigins, origin }: OriginCheck) {
   if (!origin) return true;
 
-  const submittedOrigin = canonicalOrigin(origin);
-  if (!submittedOrigin) return false;
+  const submitted = canonicalOrigin(origin);
+  if (!submitted) return false;
 
-  const allowed = new Set([
-    canonicalOrigin(requestOrigin),
-    canonicalOrigin(configuredOrigin),
-  ]);
+  const allowed = new Set(allowedOrigins.map(canonicalOrigin));
   allowed.delete(null);
-  return allowed.has(submittedOrigin);
+  return allowed.has(submitted);
 }
 
-export function signupRateLimitKeys({
-  address,
-  email,
-  secret,
-}: {
-  address: string;
-  email: string;
-  secret: string;
-}) {
-  const digest = (scope: string) =>
-    createHmac("sha256", secret).update(scope).digest("hex");
-  const normalizedAddress = address.trim() || "unknown";
-  const normalizedEmail = email.trim().toLowerCase();
-
-  return {
-    addressKey: digest(`signup:address:${normalizedAddress}`),
-    addressEmailKey: digest(
-      `signup:address-email:${normalizedAddress}:${normalizedEmail}`,
-    ),
-  };
+/** Origins permitted to call the public endpoints, from deployment config. */
+export function configuredAllowedOrigins(): string[] {
+  return [process.env.SITE_ORIGIN, process.env.SITE_ORIGIN_ALTERNATE]
+    .map((value) => canonicalOrigin(value))
+    .filter((value): value is string => value !== null);
 }

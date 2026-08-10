@@ -17,6 +17,76 @@ export const participationGoals = [
 ] as const;
 export const referralSources = ["search", "social", "community", "referral", "event", "other"] as const;
 
+/**
+ * Account roles.
+ *
+ * These are the authorization boundary of the whole product, so they are kept
+ * deliberately coarse: a `participant` is anyone seeking capital or support, an
+ * `investor` is anyone deploying it, and `admin` is platform operations. Finer
+ * distinctions that matter for *presentation* (an angel's dashboard is not a
+ * DFI's) live in `investorType` and `participantKind` rather than in the role,
+ * so that adding a new investor flavour can never accidentally widen access.
+ */
+export const accountRoles = ["participant", "investor", "admin"] as const;
+
+/**
+ * Investor types, ordered roughly by typical cheque size. Each one gets its own
+ * dashboard defaults (see lib/investor-metrics.ts) because the numbers that
+ * matter genuinely differ: an angel tracks personal deployment pace, a VC
+ * tracks fund construction and reserves, a DFI tracks mandate and impact
+ * coverage, and an LP tracks commitments and capital calls rather than direct
+ * deals at all.
+ */
+export const investorTypes = [
+  "angel",
+  "syndicate",
+  "venture",
+  "corporate",
+  "family-office",
+  "development-finance",
+  "limited-partner",
+  "accelerator",
+] as const;
+
+export const participantKinds = ["startup", "institution", "individual"] as const;
+
+export type AccountRole = (typeof accountRoles)[number];
+export type InvestorType = (typeof investorTypes)[number];
+export type ParticipantKind = (typeof participantKinds)[number];
+
+export const INVESTOR_TYPE_LABELS: Record<InvestorType, string> = {
+  angel: "Angel",
+  syndicate: "Syndicate",
+  venture: "Venture fund",
+  corporate: "Corporate venture",
+  "family-office": "Family office",
+  "development-finance": "Development finance",
+  "limited-partner": "Limited partner",
+  accelerator: "Accelerator",
+};
+
+// Sign-up payload for the role-aware Convex Auth password provider. The role is
+// chosen by the person signing up, but `admin` is never accepted here — admin
+// accounts are provisioned by an existing admin, never self-selected.
+export const accountSignUpSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(254),
+  name: z.string().trim().min(2).max(100),
+  role: z.enum(["participant", "investor"]),
+  investorType: z.enum(investorTypes).optional(),
+  participantKind: z.enum(participantKinds).optional(),
+  organizationName: z.string().trim().max(120).optional(),
+  location: z.string().trim().max(120).optional(),
+}).superRefine((value, context) => {
+  if (value.role === "investor" && !value.investorType) {
+    context.addIssue({ code: "custom", path: ["investorType"], message: "Choose the kind of investor you are" });
+  }
+  if (value.role === "participant" && !value.participantKind) {
+    context.addIssue({ code: "custom", path: ["participantKind"], message: "Choose what you are joining as" });
+  }
+});
+
+export type AccountSignUp = z.infer<typeof accountSignUpSchema>;
+
 export const startupProfileSchema = z.object({
   name: z.string().trim().min(2).max(100),
   organizationType: z.enum(organizationTypes),

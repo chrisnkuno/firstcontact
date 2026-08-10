@@ -27,13 +27,13 @@ export const get = query({
 export const create = mutation({
   args: { organizationId: v.id("organizations"), startupProfileId: v.id("startupProfiles"), name: v.string(), dailyLimit: v.number() },
   handler: async (ctx, args) => {
-    const { identity } = await requireMembership(ctx, args.organizationId, ["owner", "member"]);
+    const { user } = await requireMembership(ctx, args.organizationId, ["owner", "member"]);
     const profile = await ctx.db.get(args.startupProfileId);
     if (!profile || profile.organizationId !== args.organizationId) throw new Error("Profile does not belong to this organization");
     const name = args.name.trim();
     if (name.length < 2 || name.length > 120 || !Number.isInteger(args.dailyLimit) || args.dailyLimit < 1 || args.dailyLimit > 25) throw new Error("Invalid campaign");
-    const campaignId = await ctx.db.insert("campaigns", { organizationId: args.organizationId, startupProfileId: args.startupProfileId, name, status: "draft", dailyLimit: args.dailyLimit, createdBy: identity.tokenIdentifier, createdAt: Date.now() });
-    await ctx.db.insert("auditEvents", { organizationId: args.organizationId, actorId: identity.tokenIdentifier, action: "campaign.created", entityType: "campaign", entityId: campaignId, createdAt: Date.now() });
+    const campaignId = await ctx.db.insert("campaigns", { organizationId: args.organizationId, startupProfileId: args.startupProfileId, name, status: "draft", dailyLimit: args.dailyLimit, createdBy: user._id, createdAt: Date.now() });
+    await ctx.db.insert("auditEvents", { organizationId: args.organizationId, actorId: user._id, action: "campaign.created", entityType: "campaign", entityId: campaignId, createdAt: Date.now() });
     return { campaignId };
   },
 });
@@ -43,7 +43,7 @@ export const updateDraft = mutation({
   handler: async (ctx, args) => {
     const campaign = await ctx.db.get(args.campaignId);
     if (!campaign) throw new Error("Campaign not found");
-    const { identity, membership } = await requireMembership(ctx, campaign.organizationId, ["owner", "member"]);
+    const { user, membership } = await requireMembership(ctx, campaign.organizationId, ["owner", "member"]);
     if (!canPerformCampaignAction(membership.role, campaign.status, "edit")) throw new Error("Campaign cannot be edited in its current state");
     const patch: { name?: string; dailyLimit?: number } = {};
     if (args.name !== undefined) {
@@ -57,7 +57,7 @@ export const updateDraft = mutation({
     }
     if (Object.keys(patch).length === 0) throw new Error("No campaign changes supplied");
     await ctx.db.patch(campaign._id, patch);
-    await ctx.db.insert("auditEvents", { organizationId: campaign.organizationId, actorId: identity.tokenIdentifier, action: "campaign.updated", entityType: "campaign", entityId: campaign._id, createdAt: Date.now() });
+    await ctx.db.insert("auditEvents", { organizationId: campaign.organizationId, actorId: user._id, action: "campaign.updated", entityType: "campaign", entityId: campaign._id, createdAt: Date.now() });
   },
 });
 
@@ -65,7 +65,7 @@ async function transitionCampaign(ctx: MutationCtx, campaignId: Id<"campaigns">,
   const campaign = await ctx.db.get(campaignId);
   if (!campaign) throw new Error("Campaign not found");
   const roles = action === "approve" ? ["owner", "reviewer"] as const : action === "request_review" ? ["owner", "member"] as const : ["owner"] as const;
-  const { identity, membership } = await requireMembership(ctx, campaign.organizationId, roles);
+  const { user, membership } = await requireMembership(ctx, campaign.organizationId, roles);
   if (!canPerformCampaignAction(membership.role, campaign.status, action)) throw new Error("Campaign transition is not allowed");
   if (action === "approve") {
     const profile = await ctx.db.get(campaign.startupProfileId);
@@ -73,7 +73,7 @@ async function transitionCampaign(ctx: MutationCtx, campaignId: Id<"campaigns">,
   }
   const status = campaignStatusAfter(action);
   await ctx.db.patch(campaign._id, { status });
-  await ctx.db.insert("auditEvents", { organizationId: campaign.organizationId, actorId: identity.tokenIdentifier, action: `campaign.${status}`, entityType: "campaign", entityId: campaign._id, createdAt: Date.now() });
+  await ctx.db.insert("auditEvents", { organizationId: campaign.organizationId, actorId: user._id, action: `campaign.${status}`, entityType: "campaign", entityId: campaign._id, createdAt: Date.now() });
 }
 
 export const transition = mutation({
@@ -92,9 +92,9 @@ export const approveMessage = mutation({
     if (!message || message.status !== "draft") throw new Error("Only draft messages can be approved");
     const campaign = await ctx.db.get(message.campaignId);
     if (!campaign) throw new Error("Campaign not found");
-    const { identity } = await requireMembership(ctx, campaign.organizationId, ["owner", "reviewer"]);
+    const { user } = await requireMembership(ctx, campaign.organizationId, ["owner", "reviewer"]);
     const approvedAt = Date.now();
-    await ctx.db.patch(messageId, { status: "approved", approvedBy: identity.tokenIdentifier, approvedAt });
-    await ctx.db.insert("auditEvents", { organizationId: campaign.organizationId, actorId: identity.tokenIdentifier, action: "message.approved", entityType: "message", entityId: messageId, createdAt: approvedAt });
+    await ctx.db.patch(messageId, { status: "approved", approvedBy: user._id, approvedAt });
+    await ctx.db.insert("auditEvents", { organizationId: campaign.organizationId, actorId: user._id, action: "message.approved", entityType: "message", entityId: messageId, createdAt: approvedAt });
   },
 });

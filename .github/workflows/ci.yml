@@ -72,7 +72,7 @@ jobs:
       - run: uv run --project services/api pytest services/api/tests
 
   build:
-    name: Production build
+    name: Static export build
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

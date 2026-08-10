@@ -37,7 +37,7 @@ export default function ForFoundersPage() {
         for exactly what is real versus demonstration.
       </p>
       <p>
-        <Link className="button button-outline-dark" href="/workspace">
+        <Link className="button button-outline-dark" href="/dashboard">
           Open founder workspace <ArrowRight size={16} />
         </Link>
       </p>

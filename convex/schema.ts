@@ -1,7 +1,90 @@
 import { defineSchema, defineTable } from "convex/server";
+import { authTables } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
+const accountRole = v.union(v.literal("participant"), v.literal("investor"), v.literal("admin"));
+
+const investorType = v.union(
+  v.literal("angel"),
+  v.literal("syndicate"),
+  v.literal("venture"),
+  v.literal("corporate"),
+  v.literal("family-office"),
+  v.literal("development-finance"),
+  v.literal("limited-partner"),
+  v.literal("accelerator"),
+);
+
+const participantKind = v.union(v.literal("startup"), v.literal("institution"), v.literal("individual"));
+
 export default defineSchema({
+  ...authTables,
+
+  // Overrides authTables.users to carry the role model. Every field Convex
+  // Auth itself reads (email, phone, the two verification times, isAnonymous,
+  // name, image) is preserved verbatim along with both required indexes —
+  // dropping any of them silently breaks sign-in rather than failing loudly.
+  //
+  // `role` is intentionally not optional: a user document with no role would
+  // be a user no authorization check can reason about, so the provider sets it
+  // at creation time and nothing else may clear it.
+  users: defineTable({
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    email: v.optional(v.string()),
+    emailVerificationTime: v.optional(v.number()),
+    phone: v.optional(v.string()),
+    phoneVerificationTime: v.optional(v.number()),
+    isAnonymous: v.optional(v.boolean()),
+
+    role: accountRole,
+    investorType: v.optional(investorType),
+    participantKind: v.optional(participantKind),
+    organizationName: v.optional(v.string()),
+    location: v.optional(v.string()),
+    createdAt: v.number(),
+    lastSeenAt: v.optional(v.number()),
+    // Set when an admin suspends an account. Checked by every authz helper, so
+    // a suspension takes effect on the next request without waiting for the
+    // user's existing session to expire.
+    suspendedAt: v.optional(v.number()),
+  })
+    .index("email", ["email"])
+    .index("phone", ["phone"])
+    .index("by_role", ["role"]),
+
+  // TOTP enrolment, kept out of `users` so that the shared "who am I" query
+  // can return a whole user document without ever risking the shared secret
+  // travelling to a browser.
+  userMfa: defineTable({
+    userId: v.id("users"),
+    secret: v.string(),
+    enabled: v.boolean(),
+    confirmedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
+  // Step-up authentication, recorded per Convex Auth session rather than per
+  // user: proving possession of the authenticator on a laptop must not silently
+  // satisfy the MFA requirement for a session opened on another device.
+  sessionMfaVerifications: defineTable({
+    sessionId: v.id("authSessions"),
+    userId: v.id("users"),
+    verifiedAt: v.number(),
+    expiresAt: v.number(),
+  }).index("by_session", ["sessionId"]).index("by_expiry", ["expiresAt"]),
+
+  // Per-user onboarding progress. Stored as explicit completed/dismissed step
+  // ids rather than a numeric "step 3 of 5" so that inserting a new onboarding
+  // card later cannot retroactively un-complete anyone's checklist.
+  onboardingState: defineTable({
+    userId: v.id("users"),
+    completedSteps: v.array(v.string()),
+    dismissedPanels: v.array(v.string()),
+    completedAt: v.optional(v.number()),
+    updatedAt: v.number(),
+  }).index("by_user", ["userId"]),
+
   interestSignups: defineTable({
     accountType: v.union(v.literal("startup"), v.literal("institution"), v.literal("individual")),
     name: v.string(),
@@ -23,15 +106,16 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
     submissionCount: v.number(),
-  }).index("by_email", ["email"]).index("by_status_time", ["status", "createdAt"]),
-  signupRateLimits: defineTable({
-    key: v.string(),
-    count: v.number(),
-    windowStartedAt: v.number(),
-    expiresAt: v.number(),
-  }).index("by_key", ["key"]).index("by_expiry", ["expiresAt"]),
+    // Claimed by the account that later signs up with the same address, which
+    // is how a participant's dashboard finds their own intake record without
+    // the client ever naming an email.
+    userId: v.optional(v.id("users")),
+  })
+    .index("by_email", ["email"])
+    .index("by_status_time", ["status", "createdAt"])
+    .index("by_user", ["userId"]),
   organizations: defineTable({ name: v.string(), slug: v.string(), createdBy: v.string(), createdAt: v.number() }).index("by_slug", ["slug"]),
-  memberships: defineTable({ organizationId: v.id("organizations"), userId: v.string(), role: v.union(v.literal("owner"), v.literal("reviewer"), v.literal("member")) }).index("by_org_user", ["organizationId", "userId"]).index("by_user", ["userId"]),
+  memberships: defineTable({ organizationId: v.id("organizations"), userId: v.id("users"), role: v.union(v.literal("owner"), v.literal("reviewer"), v.literal("member")) }).index("by_org_user", ["organizationId", "userId"]).index("by_user", ["userId"]),
   startupProfiles: defineTable({ organizationId: v.id("organizations"), organizationType: v.union(v.literal("startup"), v.literal("institution")), name: v.string(), website: v.string(), location: v.string(), region: v.string(), stage: v.string(), sectors: v.array(v.string()), raiseAmountUsd: v.number(), oneLiner: v.string(), traction: v.string(), impact: v.string(), founderContext: v.string(), targetRegions: v.array(v.string()), status: v.union(v.literal("draft"), v.literal("active"), v.literal("archived")), consentRecordedAt: v.number(), updatedAt: v.number() }).index("by_organization", ["organizationId"]),
   sources: defineTable({ organizationId: v.id("organizations"), url: v.string(), title: v.optional(v.string()), provider: v.union(v.literal("exa"), v.literal("manual")), providerRequestId: v.optional(v.string()), capturedAt: v.number(), excerpt: v.optional(v.string()), contentHash: v.optional(v.string()) }).index("by_url", ["url"]).index("by_organization_url", ["organizationId", "url"]),
   investors: defineTable({ organizationId: v.id("organizations"), firm: v.string(), person: v.optional(v.string()), role: v.optional(v.string()), region: v.string(), website: v.string(), email: v.optional(v.string()), contactType: v.union(v.literal("generic_business"), v.literal("named_business"), v.literal("unknown")), thesis: v.string(), stages: v.array(v.string()), sectors: v.array(v.string()), geographies: v.array(v.string()), sourceIds: v.array(v.id("sources")), lastVerifiedAt: v.number() }).index("by_org_firm", ["organizationId", "firm"]),
@@ -120,85 +204,22 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_profile_email", ["profileId", "email"]),
 
-  // Techadmin operator accounts. Password hashing (scrypt) happens in the
-  // Next.js server route, which is the only place Node crypto is available;
-  // this table only ever stores/compares the resulting hash string.
-  adminUsers: defineTable({
-    email: v.string(),
-    passwordHash: v.string(),
-    role: v.literal("techadmin"),
-    createdAt: v.number(),
-    lastLoginAt: v.optional(v.number()),
-    // Set once enrollment starts, but mfaEnabled only flips true after the
-    // admin proves possession of the authenticator app with a real code.
-    mfaSecret: v.optional(v.string()),
-    mfaEnabled: v.boolean(),
-  }).index("by_email", ["email"]),
-
-  // Bridges the gap between "password verified" and "session issued" once
-  // MFA is enabled: single-use, five-minute-lived, never itself sufficient
-  // to authenticate — only a valid TOTP code can consume one.
-  adminMfaChallenges: defineTable({
-    tokenHash: v.string(),
-    adminUserId: v.id("adminUsers"),
-    createdAt: v.number(),
-    expiresAt: v.number(),
-  }).index("by_token_hash", ["tokenHash"]).index("by_expiry", ["expiresAt"]),
-
-  // Sessions are opaque, random tokens; only their SHA-256 hash is ever
-  // stored, so a database read alone can never yield a usable session.
-  adminSessions: defineTable({
-    tokenHash: v.string(),
-    adminUserId: v.id("adminUsers"),
-    createdAt: v.number(),
-    expiresAt: v.number(),
-    userAgent: v.optional(v.string()),
-  }).index("by_token_hash", ["tokenHash"]).index("by_expiry", ["expiresAt"]),
-
-  adminLoginAttempts: defineTable({
-    key: v.string(),
-    count: v.number(),
-    windowStartedAt: v.number(),
-    expiresAt: v.number(),
-  }).index("by_key", ["key"]).index("by_expiry", ["expiresAt"]),
-
-  // Accountability trail for status changes made through the techadmin
-  // pipeline view.
+  // Accountability trail for privileged actions. `actorUserId` is a real
+  // authenticated user rather than a bearer-secret holder, which is the whole
+  // point of the Convex Auth migration: every entry here names someone.
   adminAuditLog: defineTable({
-    adminUserId: v.id("adminUsers"),
+    actorUserId: v.id("users"),
     action: v.string(),
     targetType: v.string(),
     targetId: v.string(),
     metadata: v.optional(v.any()),
     createdAt: v.number(),
-  }).index("by_time", ["createdAt"]),
+  }).index("by_time", ["createdAt"]).index("by_actor", ["actorUserId"]),
 
-  // A deliberately separate, low-privilege login surface from adminUsers:
-  // a founder account can only ever read its own interestSignups record
-  // (matched by email at query time), never anyone else's data or any
-  // platform-wide metric. Gated by its own secret (FOUNDER_ACTION_SECRET)
-  // so a leak here can never be used to reach the techadmin surface.
-  founderAccounts: defineTable({
-    email: v.string(),
-    // Optional operator-provisioned link for another member of the same
-    // organization. The public login flow cannot set or change this value;
-    // founder:createAccount requires the server-only founder action secret
-    // and verifies that the target signup exists first.
-    signupEmail: v.optional(v.string()),
-    passwordHash: v.string(),
-    createdAt: v.number(),
-    lastLoginAt: v.optional(v.number()),
-  }).index("by_email", ["email"]),
-
-  founderSessions: defineTable({
-    tokenHash: v.string(),
-    founderAccountId: v.id("founderAccounts"),
-    createdAt: v.number(),
-    expiresAt: v.number(),
-    userAgent: v.optional(v.string()),
-  }).index("by_token_hash", ["tokenHash"]).index("by_expiry", ["expiresAt"]),
-
-  founderLoginAttempts: defineTable({
+  // Generic keyed limiter backing the public, unauthenticated surfaces
+  // (signup submission, catalogue interest). Convex Auth ships its own
+  // limiter for password attempts, so this no longer covers login.
+  rateLimits: defineTable({
     key: v.string(),
     count: v.number(),
     windowStartedAt: v.number(),

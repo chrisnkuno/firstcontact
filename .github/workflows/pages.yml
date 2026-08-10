@@ -1,0 +1,74 @@
+name: Deploy to GitHub Pages
+
+# The application is a static export (see next.config.ts) with Convex as its
+# only backend, so deployment is: build the site, upload the artifact, publish.
+# There is no server to deploy alongside it — the Convex functions are deployed
+# separately by `bunx convex deploy`, which is deliberately NOT run from here so
+# that a schema change is always a conscious, reviewed act rather than a side
+# effect of merging to main.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel an in-progress deployment: interrupting one can leave Pages
+# serving a half-published site. Queue instead.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  BUN_VERSION: 1.3.14
+
+jobs:
+  build:
+    name: Build static site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+      - run: bun install --frozen-lockfile
+
+      - name: Build
+        env:
+          # Inlined into the bundle at build time. NEXT_PUBLIC_CONVEX_URL is not
+          # a secret — it is a public deployment address, and every Convex
+          # function enforces its own authorization — but it is configured as a
+          # repository variable so a fork builds against its own backend.
+          NEXT_PUBLIC_CONVEX_URL: ${{ vars.NEXT_PUBLIC_CONVEX_URL }}
+          NEXT_PUBLIC_APP_URL: ${{ vars.NEXT_PUBLIC_APP_URL }}
+          # Set to "/<repo-name>" for a project site served from a subpath;
+          # leave empty for a user/organization site or a custom domain.
+          NEXT_PUBLIC_BASE_PATH: ${{ vars.NEXT_PUBLIC_BASE_PATH }}
+        run: bun run build
+
+      # Without this, Pages runs the output through Jekyll, which silently drops
+      # every file and directory beginning with an underscore — including
+      # `_next`, i.e. the entire JavaScript and CSS bundle.
+      - name: Disable Jekyll processing
+        run: touch out/.nojekyll
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: out
+
+  deploy:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

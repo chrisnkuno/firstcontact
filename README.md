@@ -6,7 +6,7 @@
 [![MIT License](https://img.shields.io/badge/license-MIT-173d2d.svg)](LICENSE)
 [![Responsible outreach](https://img.shields.io/badge/outreach-human--approved-c8fa52.svg)](docs/COMPLIANCE.md)
 
-[Public deployment](https://firstcontact-tau.vercel.app) · [Join FirstContact](https://firstcontact-tau.vercel.app/signup) · [Architecture](docs/ARCHITECTURE.md) · [Deployment guide](docs/DEPLOYMENT.md)
+[Public deployment](https://chrisnkuno.github.io/firstcontact) · [Join FirstContact](https://chrisnkuno.github.io/firstcontact/signup) · [Architecture](docs/ARCHITECTURE.md) · [Deployment guide](docs/DEPLOYMENT.md)
 
 FirstContact is an open-source product and backend foundation for building a more transparent fundraising pipeline. It combines:
 
@@ -40,37 +40,36 @@ Choose the path that matches what you want to do:
 ### Persisted
 
 - The three-step `/signup` questionnaire validates input through the shared contract in `lib/domain.ts`.
-- `POST /api/signups` applies actual-byte payload limits, same-origin browser checks, a honeypot, shared validation, and durable Convex-backed rate limits.
+- The signup endpoint (`POST {convex.site}/public/signups`) applies an origin allowlist, a honeypot, shared validation, and durable Convex-backed address+email rate limits keyed by an HMAC so raw IPs are never stored.
 - Convex stores private interest records and deduplicates them by normalized email.
 - Repeat submissions update the existing record, retain its review status, and increment a submission counter.
 - Consent time, participation goals, referral source, product-update preference, and a private reference are recorded.
-- The homepage's "Real interest, counted honestly" section reads live, non-PII aggregate signup counts straight from Convex (`convex/signups.ts#publicStats`, `GET /api/stats`). With no Convex configured it shows an explicit empty state instead of any number — it never fabricates activity.
-- `POST /api/catalogue-interest` persists a real, timestamped, deduplicated interest signal (email + optional note, keyed to a catalogue profile id) to the `catalogueInterestSignals` Convex table when an investor clicks "Express interest" on `/catalogue`. This is genuine write, not local-only preview state.
+- The homepage's "Real interest, counted honestly" section subscribes to live, non-PII aggregate signup counts straight from Convex (`convex/signups.ts#publicStats`). With no Convex configured it shows an explicit empty state instead of any number — it never fabricates activity.
+- `POST {convex.site}/public/catalogue-interest` persists a real, timestamped, deduplicated interest signal (email + optional note, keyed to a catalogue profile id) to the `catalogueInterestSignals` Convex table when an investor clicks "Express interest" on `/catalogue`. This is genuine write, not local-only preview state.
 
 A signup creates an `interestSignups` record only. It does **not** automatically create an account, organization, catalogue listing, campaign, investor match, or outbound message.
 
-### Preview and reference implementation
+### Accounts, roles and dashboards
 
-- The public site, founder workspace, and VC catalogue are responsive product demonstrations.
-- Catalogue organizations, matches, drafts, metrics, and pipeline events are fictional and labeled preview data — only the interest signal an investor submits against a profile is real and persisted (see above).
-- Without an Exa key, discovery returns labeled sample matches.
-- Without an OpenAI key, drafting returns a non-fabricated placeholder.
-- The Convex schema models the intended multi-tenant product, but most workspace workflows are not yet wired to it.
+- Authentication is [Convex Auth](https://labs.convex.dev/auth) with a password provider. Accounts carry a role: **participant**, **investor** (one of eight types), or **admin**. `admin` is rejected from every sign-up payload — promotion requires an existing verified admin, or a one-time bootstrap secret that stops working once any admin exists.
+- Admin access additionally requires **per-session TOTP step-up**: being an admin is not sufficient, and a session that has not proved possession of an authenticator within eight hours is refused.
+- Each role gets a dedicated, metrics-led dashboard (`/dashboard`, `/investor`, `/admin`) with charts fed by real Convex data and honest empty states.
+- **No fictional data ships.** The catalogue lists only founder-published records and shows an empty state when there are none; discovery with no Exa key reports that it is unconfigured rather than returning sample investors. Fictional records live in `scripts/seed-dev.mjs`, which refuses to run against a non-`dev:` deployment.
 
 ### Automated UI translation
 
 - A site-wide language switcher (`components/language-switcher.tsx`) and `<T>`/`useTranslation()` (`components/translation-provider.tsx`) wrap the homepage, catalogue, and signup copy so founders and investors who don't read English can use the product.
-- `POST /api/translate` batches strings and, with `OPENAI_API_KEY` configured, asks the model to translate them; without a key it echoes the original text back rather than fabricating a translation, matching this project's other provider adapters.
+- `POST {convex.site}/public/translate` batches strings and, with `OPENAI_API_KEY` configured, asks the model to translate them; without a key it echoes the original text back rather than fabricating a translation, matching this project's other provider adapters.
 - Translations are cached client-side per language for the session. This is a best-effort UI layer, not a substitute for professionally reviewed content in the languages an operator formally supports.
 
 ### Available but not production-complete
 
 - The FastAPI backend in `services/api` implements OIDC-forwarded, membership-checked workflow creation; durable Convex leasing and budgets; a separate dispatcher; scoped E2B execution; and an Exa gateway that persists source evidence as unreviewed candidates. Browser OIDC, reviewed normalization, drafting, workspace wiring, deployment, and delivery are not yet active.
-- Exa discovery can return live search results, but those results are not yet normalized or persisted as reviewed investor records.
-- OpenAI can produce structured drafts from supplied facts, but the route needs deployment-specific authentication, usage limits, and audit persistence.
-- Resend delivery is fail-closed behind an operator token, an explicit outbound flag, approval, source, jurisdiction, suppression, postal-identity, and unsubscribe checks.
-- Resend webhook signatures are verified, but verified events are not yet persisted to Convex.
-- Account authentication and identity-derived tenant authorization still need to be configured before private workspaces can serve real users.
+- Exa discovery persists results as source-linked `researchCandidates` marked `unreviewed`; a person promotes them into `investors`, after which campaign matches are scored with `lib/matching.ts`.
+- OpenAI produces structured drafts from supplied facts through `outreach:draft`, which persists them as `draft` — never `approved` — so nothing that action produces is sendable.
+- Resend delivery is fail-closed behind organization ownership, an explicit outbound flag, approval, source, jurisdiction, suppression, postal-identity, and unsubscribe checks.
+- Resend webhook signatures are verified *and* persisted: verified events are recorded idempotently by `svix-id`, and bounces and complaints write suppressions automatically.
+- Investor research runs end-to-end through the FastAPI/E2B worker, but promoting a discovered candidate into a contactable investor is a deliberate human step (`research:verifyCandidate`), and no message is delivered without a second human approval.
 
 See [Launch readiness](docs/LAUNCH_READINESS.md) before treating any part of the preview as production-ready.
 
@@ -80,8 +79,10 @@ See [Launch readiness](docs/LAUNCH_READINESS.md) before treating any part of the
 |---|---|---|
 | `/` | Explains the operating model and principles; shows a live, honest signup-count section and an economics diagram | Public content + real Convex aggregate stats |
 | `/signup` | Collects participation interest | Persists only when Convex signup ingestion is configured |
-| `/workspace` | Demonstrates the founder/operator control center | Fictional preview state |
-| `/catalogue` | Demonstrates consent-based company discovery | Fictional profiles; "Express interest" persists a real signal to Convex |
+| `/join`, `/signin` | Create an account or sign in | Convex Auth password provider |
+| `/dashboard` | Participant dashboard: raise plan vs. real outreach, readiness, charts | Real Convex data; empty states where nothing has happened |
+| `/investor` | Investor dashboard, tailored per investor type | Real activity counts; planning figures labelled as assumptions |
+| `/catalogue` | Consent-based company discovery | Founder-published listings only; empty when none are published |
 | `/plan` | Founder outreach funnel planner: how many investor contacts a raise requires, run backward from the goal | Real math over user-editable assumptions, plus a live Convex network scorecard |
 | `/pacing` | Investor portfolio pacing planner: how many companies to review/meet to hit a portfolio target | Real math over user-editable assumptions, plus a live Convex catalogue-interest scorecard |
 | `/research/private-equity` | Comprehensive global capital-lifecycle brief spanning angels through recycled liquidity | Public research; proposed direction, not a live matching capability |
@@ -91,19 +92,15 @@ See [Launch readiness](docs/LAUNCH_READINESS.md) before treating any part of the
 | `/for-founders`, `/for-investors` | Audience-specific overviews linking to the relevant tools | Public content |
 | `/responsible-outreach` | Explains the outreach safety model | Public content |
 | `/privacy`, `/terms`, `/security` | Baseline policy and security information | Templates that operators must adapt |
-| `/admin` | Techadmin dashboard: platform metrics and signup pipeline management | Requires a techadmin session; see [Techadmin access](#techadmin-access) |
-| `/api/health` | Reports configured provider capabilities | Never returns secret values |
-| `/api/stats` | Reports real, non-PII signup aggregates | `{ configured: false }` rather than fabricated zeros when Convex isn't set up |
-| `/api/catalogue-stats` | Reports real, non-PII catalogue-interest aggregates | `{ configured: false }` rather than fabricated zeros when Convex isn't set up |
-| `/api/translate` | Translates UI copy for the language switcher | Echoes input back unchanged without `OPENAI_API_KEY` |
+| `/admin`, `/admin/pipeline`, `/admin/mfa` | Operator dashboards: platform metrics, intake pipeline, audit log, security | Requires an admin account **with TOTP step-up on the current session** |
 
-Every page also offers a language switcher (English, French, Spanish, Portuguese, Swahili, Arabic, Bengali) that machine-translates on-screen copy through `/api/translate`, aimed at widening who can realistically use the catalogue and signup flow beyond English speakers.
+Every page also offers a language switcher (English, French, Spanish, Portuguese, Swahili, Arabic, Bengali) that machine-translates on-screen copy through the Convex translation endpoint, aimed at widening who can realistically use the catalogue and signup flow beyond English speakers.
 
 ## Research direction: the global capital lifecycle
 
 The complete, source-linked analysis is available as:
 
-- the [`/research/private-equity`](https://firstcontact-tau.vercel.app/research/private-equity) project page;
+- the [`/research/private-equity`](https://chrisnkuno.github.io/firstcontact/research/private-equity) project page;
 - [the repository research brief](docs/PRIVATE_EQUITY_RESEARCH.md); and
 - [the downloadable PDF](public/firstcontact-private-equity-research.pdf).
 
@@ -363,7 +360,8 @@ Copy `.env.example` to `.env.local` for local work. Use separate credentials and
 | `CONVEX_DEPLOYMENT` | Tooling | Convex CLI project selection | Normally written by Convex tooling |
 | `CONVEX_URL` | Server only | Signup persistence | Preferred server-side Convex URL |
 | `NEXT_PUBLIC_CONVEX_URL` | Public | Convex client configuration and health reporting | A deployment URL, not a secret |
-| `SIGNUP_INGEST_SECRET` | Server only | Authorized signup and catalogue-interest ingestion | Must match the Convex environment value; also gates `POST /api/catalogue-interest` |
+| `RATE_LIMIT_SECRET` | Convex only | HMAC key for rate-limiter keys, so the limiter table never stores raw IP addresses | Public write endpoints **fail closed** without it |
+| `SITE_ORIGIN` | Convex only | Origin allowlist for the public ingestion endpoints | Must match the deployed site exactly, or every signup is rejected as cross-origin |
 | `WORKFLOW_ACTION_SECRET` | Server only | FastAPI-to-Convex workflow mutations | Set the same high-entropy value in FastAPI and Convex; keep distinct from every other secret |
 | `FASTAPI_SERVICE_TOKEN` | Server only | Dispatcher and service-only FastAPI endpoints | Never expose it to a browser; user workflow routes reject this token |
 | `OIDC_ISSUER_URL` | Server only | Organization authentication | Must identify the same OIDC issuer in FastAPI and Convex |
@@ -383,7 +381,7 @@ Copy `.env.example` to `.env.local` for local work. Use separate credentials and
 | `ADMIN_ACTION_SECRET` | Server only | All authenticated `/admin` reads and writes | Must match the Convex environment value; distinct from `SIGNUP_INGEST_SECRET` so its blast radius stays contained |
 | `FOUNDER_ACTION_SECRET` | Server only | Creating/resetting participant `/status` accounts and all authenticated `/status` reads | Must match the Convex environment value; only used by `scripts/create-founder-account.mjs` and the founder-auth session path; distinct from every other secret |
 | `EXA_API_KEY` | Server only | Live investor discovery | Do not expose the discovery route publicly without auth and budgets |
-| `OPENAI_API_KEY` | Server only | Structured draft generation and `/api/translate` | Without it, translation echoes the original text instead of fabricating a translation |
+| `OPENAI_API_KEY` | Convex only | Structured draft generation and UI translation | Without it, translation echoes the original text instead of fabricating a translation |
 | `OPENAI_MODEL` | Server only | Draft model selection | Defaults to `gpt-5-nano` |
 | `RESEND_API_KEY` | Server only | Email transport | Requires a verified sending domain |
 | `RESEND_FROM` | Server only | Email sender identity | Use a monitored, reply-capable address |
@@ -396,7 +394,7 @@ Copy `.env.example` to `.env.local` for local work. Use separate credentials and
 Check the effective capability state without revealing credentials:
 
 ```bash
-curl http://localhost:3000/api/health
+bunx convex run users:viewer '{}'   # confirms the deployment answers
 curl http://localhost:8000/healthz
 curl -i http://localhost:8000/readyz
 ```
@@ -436,13 +434,13 @@ Both operations require the server-only `FOUNDER_ACTION_SECRET`. Passwords are s
 
 ### Exa discovery
 
-`POST /api/discover` accepts a validated founder profile. Without `EXA_API_KEY`, it returns labeled sample matches. With a key, it returns live Exa source results and the provider request ID.
+`outreach:discover` takes a campaign id and requires organization membership. Without `EXA_API_KEY` it reports that discovery is unconfigured and returns nothing — it no longer returns sample investors. With a key it persists every result as a source-linked, `unreviewed` research candidate.
 
 Live search results are evidence candidates, not verified contacts. Before using them, normalize domains, deduplicate firms, classify contact types, preserve source URLs, verify claims, apply budgets, and write the reviewed result to Convex.
 
 ### OpenAI drafting
 
-`POST /api/draft` accepts founder facts and investor evidence. With `OPENAI_API_KEY`, it requests strict structured output containing:
+`outreach:draft` takes a campaign and a verified investor. With `OPENAI_API_KEY` it requests strict structured output containing:
 
 - `subject`
 - `body`
@@ -452,7 +450,7 @@ The prompt prohibits invented metrics, relationships, portfolio claims, and cont
 
 ### Resend delivery
 
-`POST /api/send` requires:
+`outreach:sendApproved` requires:
 
 - `Authorization: Bearer <OUTBOUND_API_TOKEN>`;
 - `OUTBOUND_EMAIL_ENABLED=true`;
@@ -467,7 +465,7 @@ The prompt prohibits invented metrics, relationships, portfolio claims, and cont
 
 Do not enable it merely because Resend credentials are available. First add identity-derived organization authorization, durable daily limits, campaign state, audit events, suppression checks backed by Convex, and end-to-end bounce, complaint, and unsubscribe handling.
 
-`POST /api/webhooks/resend` verifies Svix signatures over the raw request body. Connecting verified events to `webhookEvents`, message state, and suppressions remains an explicit implementation step.
+`POST {convex.site}/webhooks/resend` verifies the Svix signature over the raw body with Web Crypto (enforcing the timestamp window before computing the HMAC, so a replayed-but-validly-signed delivery is rejected), records the event idempotently by `svix-id`, and writes a suppression for every bounce and complaint.
 
 ## Architecture
 

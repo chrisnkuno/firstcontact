@@ -31,7 +31,7 @@ export default function HowItWorksPage() {
         carries a plain-language reason from deterministic, inspectable scoring — not an opaque score a model invented.
       </p>
       <p>
-        <strong>Status:</strong> without an Exa key, <code>/api/discover</code> returns labeled sample matches. With a key, it returns
+        <strong>Status:</strong> without an Exa key, <code>outreach:discover</code> reports that discovery is unconfigured and returns nothing. With a key, it returns
         live source results that still require normalization and human review before they become reviewed investor records.
       </p>
 

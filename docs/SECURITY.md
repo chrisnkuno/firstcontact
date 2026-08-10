@@ -20,23 +20,60 @@ Do not open a public issue containing exploit details or personal data. Use this
 | Prompt injection in a source page | Delimit source text, prohibit tool authority, structured outputs, no secrets in context |
 | Fabricated investor claim | Source-linked evidence and human review |
 | Duplicate sends | Stable idempotency key plus persisted pre-send state |
-| Forged webhook | Svix verification over raw body and event-ID deduplication |
+| Forged webhook | Svix-scheme HMAC verification over the raw body, timestamp tolerance, and event-ID deduplication |
+| Session theft via XSS | Strict CSP, no HTML-injection sink, and TOTP step-up so a stolen token alone cannot read platform data |
+| Privilege self-escalation | `admin` is rejected from every sign-up payload; promotion requires an existing verified admin |
 | Suppression race | Check after approval and atomically again before queueing |
 | API-key disclosure | Server-only environment variables, log redaction, least-scope keys |
 | SSRF through submitted URLs | URL parsing, public-host allow policy, no unrestricted server fetch |
 | Spreadsheet/formula injection in exports | Escape `=`, `+`, `-`, `@` prefixes in CSV cells |
 | Resource/cost exhaustion | Per-tenant quotas, bounded results, daily send caps, workflow concurrency limits |
 
-## Response headers and Content Security Policy
+## Content Security Policy, and what a static host cannot do
 
-`next.config.ts` sets `Content-Security-Policy`, `Strict-Transport-Security`
-(production only), `X-Content-Type-Options`, `X-Frame-Options`,
-`Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy`,
-`Cross-Origin-Resource-Policy`, and `X-DNS-Prefetch-Control` on every route.
+The application is a static export served by GitHub Pages, which **cannot set
+response headers**. This is a genuine reduction in defence-in-depth compared
+with the previous Node deployment, and is recorded here rather than glossed.
 
-The policy is `default-src 'self'` with `connect-src 'self'`, `object-src
-'none'`, `frame-ancestors 'none'`, `base-uri 'self'`, and `form-action 'self'`.
-`'unsafe-eval'` is development-only, for hot reloading.
+What survives, as a `<meta http-equiv="Content-Security-Policy">` tag in
+`app/layout.tsx`:
+
+- `default-src 'self'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'`
+- `connect-src` widened from `'self'` to the Convex deployment origins
+  (`*.convex.cloud`, `*.convex.site`, and the `wss:` socket). The browser now
+  talks to Convex directly; narrowing this back would break the application.
+- `script-src 'self' 'unsafe-inline'` — Next streams its RSC payload as inline
+  scripts, and a statically prerendered page has no request from which to mint a
+  nonce. The residual risk is HTML injection, and the codebase has no vector for
+  it: no `dangerouslySetInnerHTML`, no `eval`, no `new Function`, no third-party
+  script origins, self-hosted fonts.
+
+What is lost, with no meta equivalent:
+
+| Header | Status |
+|---|---|
+| `Strict-Transport-Security` | Gone. `*.github.io` is HSTS-preloaded by the browser, so the exposed case is a custom domain, which needs HSTS from a fronting CDN. |
+| `X-Frame-Options` | Gone. `frame-ancestors` in a meta tag is ignored by browsers, so clickjacking protection now depends on the host. |
+| `X-Content-Type-Options` | Gone. |
+| `Permissions-Policy` | Gone. |
+| `Cross-Origin-Opener-Policy` / `Cross-Origin-Resource-Policy` | Gone. |
+| `Referrer-Policy` | Partially recovered via `<meta name="referrer">`. |
+
+## Session storage
+
+Convex Auth holds session and refresh tokens in `localStorage`, because a static
+host has no server from which to set an HttpOnly cookie. A successful XSS could
+therefore read a session token, where previously it could not.
+
+The compensating control is that a token is not sufficient for anything
+privileged: `requireAdmin` additionally demands that the *current session* has
+completed TOTP step-up within the last eight hours, recorded per session rather
+than per user — so possession of a token from one device does not privilege
+another. Suspension is checked on every request, so revocation is immediate
+rather than waiting for a session to expire.
+
+Deployments that cannot accept this trade should host the same build on a Node
+runtime, where cookie-based sessions and real response headers are available.
 
 `script-src` retains `'unsafe-inline'`, and that is a measured decision rather
 than an oversight. Next.js streams its React Server Component payload as
