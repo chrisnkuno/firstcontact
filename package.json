@@ -8,7 +8,7 @@
     "type": "git",
     "url": "git+https://github.com/chrisnkuno/firstcontact.git"
   },
-  "homepage": "https://firstcontact-tau.vercel.app",
+  "homepage": "https://chrisnkuno.github.io/firstcontact",
   "bugs": {
     "url": "https://github.com/chrisnkuno/firstcontact/issues"
   },
@@ -34,7 +34,8 @@
     "api:check": "cd services/api && uv --cache-dir /tmp/firstcontact-uv-cache run ruff check app tests && uv --cache-dir /tmp/firstcontact-uv-cache run mypy app tests && uv --cache-dir /tmp/firstcontact-uv-cache run pytest",
     "check": "tsc --noEmit --incremental false && vitest run && eslint . && next build",
     "convex:dev": "convex dev",
-    "convex:deploy": "convex deploy"
+    "convex:deploy": "convex deploy",
+    "seed:dev": "node scripts/seed-dev.mjs"
   },
   "//overrides": "Transitive dependencies of next/vite/eslint carrying known-high advisories, forced to their fixed releases rather than suppressed in the audit. Remove an entry once the parent package requires the fixed version itself.",
   "overrides": {
@@ -44,18 +45,18 @@
   },
   "//dependencies": "Pinned to exact versions on purpose: a fresh `bun install` without the lockfile must resolve to the versions CI verified, and Dependabot proposes upgrades as reviewable PRs instead of them arriving silently.",
   "dependencies": {
+    "@auth/core": "0.37.4",
+    "@convex-dev/auth": "0.0.94",
     "@fontsource-variable/space-grotesk": "5.3.0",
     "convex": "1.42.3",
     "gsap": "3.15.0",
     "lucide-react": "1.25.0",
     "motion": "12.42.2",
     "next": "16.2.11",
-    "openai": "6.48.0",
     "qrcode": "1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "resend": "6.18.0",
-    "svix": "1.98.0",
+    "recharts": "3.10.1",
     "zod": "4.4.3"
   },
   "devDependencies": {

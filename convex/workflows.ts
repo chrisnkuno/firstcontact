@@ -32,7 +32,7 @@ export const createRun = mutation({
   handler: async (ctx, args) => {
     const campaign = await ctx.db.get(args.campaignId);
     if (!campaign) throw new Error("Campaign not found");
-    const { identity } = await requireMembership(ctx, campaign.organizationId, ["owner"]);
+    const { user } = await requireMembership(ctx, campaign.organizationId, ["owner"]);
     if (campaign.status !== "approved" && campaign.status !== "running") throw new Error("Campaign must be approved before work starts");
     if (args.budgetUsd <= 0 || args.budgetUsd > 500) throw new Error("Workflow budget is outside the allowed range");
     const profile = await ctx.db.get(campaign.startupProfileId);
@@ -46,7 +46,7 @@ export const createRun = mutation({
       campaignId: args.campaignId,
       kind: args.kind,
       status: "queued",
-      requestedBy: identity.tokenIdentifier,
+      requestedBy: user._id,
       idempotencyKey: args.idempotencyKey,
       budgetUsd: args.budgetUsd,
       spentUsd: 0,
@@ -81,7 +81,7 @@ export const createRun = mutation({
     });
     await ctx.db.insert("auditEvents", {
       organizationId: campaign.organizationId,
-      actorId: identity.tokenIdentifier,
+      actorId: user._id,
       action: "workflow.requested",
       entityType: "workflowRun",
       entityId: runId,
@@ -312,7 +312,7 @@ export const cancelRun = mutation({
   handler: async (ctx, args) => {
     const run = await ctx.db.get(args.runId);
     if (!run) throw new Error("Workflow run not found");
-    const { identity } = await requireMembership(ctx, run.organizationId, ["owner"]);
+    const { user } = await requireMembership(ctx, run.organizationId, ["owner"]);
     if (run.status === "succeeded" || run.status === "failed" || run.status === "blocked") throw new Error("Terminal workflow cannot be cancelled");
     const steps = await ctx.db.query("workflowSteps").withIndex("by_run", (q) => q.eq("runId", run._id)).collect();
     const sandboxIds = steps.flatMap((step) => step.sandboxId ? [step.sandboxId] : []);
@@ -323,7 +323,7 @@ export const cancelRun = mutation({
       }
     }
     await ctx.db.patch(run._id, { status: "cancelled", updatedAt: args.now });
-    await ctx.db.insert("auditEvents", { organizationId: run.organizationId, actorId: identity.tokenIdentifier, action: "workflow.cancelled", entityType: "workflowRun", entityId: run._id, createdAt: args.now });
+    await ctx.db.insert("auditEvents", { organizationId: run.organizationId, actorId: user._id, action: "workflow.cancelled", entityType: "workflowRun", entityId: run._id, createdAt: args.now });
     return { sandboxIds };
   },
 });

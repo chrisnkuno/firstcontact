@@ -1,21 +1,13 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
-export const expressInterest = mutation({
-  args: {
-    ingestSecret: v.string(),
-    profileId: v.string(),
-    email: v.string(),
-    note: v.optional(v.string()),
-  },
+// Internal for the same reason as signups:record — the public path is the
+// rate-limited, origin-checked HTTP action in convex/publicRoutes.ts.
+export const recordInterest = internalMutation({
+  args: { profileId: v.string(), email: v.string(), note: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const expectedSecret = process.env.SIGNUP_INGEST_SECRET;
-    if (!expectedSecret || args.ingestSecret !== expectedSecret) {
-      throw new Error("Catalogue interest ingestion is not authorized");
-    }
-
     const now = Date.now();
     const existing = await ctx.db
       .query("catalogueInterestSignals")
@@ -67,5 +59,43 @@ export const publicStats = query({
       last7Days,
       latestCreatedAt,
     };
+  },
+});
+
+/**
+ * Listings a signed-in investor may browse.
+ *
+ * Only `listed` visibility is ever returned, and only the fields a founder
+ * explicitly approved for publication — the private intake record behind a
+ * listing is never reachable from here.
+ */
+export const listPublished = query({
+  args: {},
+  handler: async (ctx) => {
+    const listings = await ctx.db
+      .query("catalogueListings")
+      .withIndex("by_visibility", (q) => q.eq("visibility", "listed"))
+      .collect();
+
+    return Promise.all(
+      listings.map(async (listing) => {
+        const profile = await ctx.db.get(listing.startupProfileId);
+        return {
+          id: listing._id,
+          publicContext: listing.publicContext,
+          publicStrengths: listing.publicStrengths,
+          publicConsiderations: listing.publicConsiderations,
+          publicTraction: listing.publicTraction,
+          updatedAt: listing.updatedAt,
+          name: profile?.name ?? null,
+          location: profile?.location ?? null,
+          region: profile?.region ?? null,
+          stage: profile?.stage ?? null,
+          sectors: profile?.sectors ?? [],
+          oneLiner: profile?.oneLiner ?? null,
+          raiseAmountUsd: profile?.raiseAmountUsd ?? null,
+        };
+      }),
+    );
   },
 });

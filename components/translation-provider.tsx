@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { defaultLanguage, type LanguageCode } from "@/lib/languages";
+import { PUBLIC_ENDPOINTS, convexEndpoint } from "@/lib/convex-endpoints";
 
 type TranslationContextValue = {
   language: LanguageCode;
@@ -56,7 +57,7 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
   const setLanguage = useCallback((next: LanguageCode) => setGlobalLanguage(next), []);
 
   // Batches every <T>/useT() request made within one short window into a
-  // single /api/translate call per language switch, instead of one request
+  // single translate call per language switch, instead of one request
   // per string on the page.
   const flush = useCallback(async (lang: LanguageCode) => {
     const texts = Array.from(pendingRef.current);
@@ -65,7 +66,9 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     if (!texts.length || lang === "en") return;
 
     try {
-      const response = await fetch("/api/translate", {
+      const endpoint = convexEndpoint(PUBLIC_ENDPOINTS.translate);
+      if (!endpoint) return;
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ texts, target: lang }),

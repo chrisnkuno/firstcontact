@@ -1,86 +1,45 @@
 import type { NextConfig } from "next";
 
-const isProduction = process.env.NODE_ENV === "production";
-
 /**
- * Content-Security-Policy.
+ * Static export for GitHub Pages.
  *
- * `script-src` keeps `'unsafe-inline'`, and that is a deliberate, measured
- * trade-off rather than an oversight. Next.js streams its RSC payload as ~19
- * inline `self.__next_f.push(...)` scripts per page. Removing `'unsafe-inline'`
- * means nonces, nonces must be minted per request in middleware, and a
- * statically prerendered page has no request to mint one from — the nonce in
- * the response header would not match the build-time HTML, so every script on
- * every static page would be blocked. The only way to get a nonce is to render
- * all of these pages dynamically, which is a poor trade for what is mostly a
- * set of static documentation and marketing routes.
+ * The whole application is now prerendered to static HTML/JS and served by
+ * GitHub Pages, with Convex as the only backend. That has one security
+ * consequence worth stating plainly, because it is a real regression rather
+ * than a neutral change:
  *
- * What the rest of the policy still buys, even with inline script allowed:
- *   - `script-src 'self'` blocks any injected `<script src="https://evil...">`.
- *   - `connect-src 'self'` blocks exfiltration to an attacker-controlled host,
- *     which is what most XSS payloads actually need in order to be useful.
- *   - no `'unsafe-eval'` in production.
- *   - `object-src`, `base-uri`, `form-action`, and `frame-ancestors` close the
- *     plugin, base-tag, form-hijack, and clickjacking vectors.
+ *   **GitHub Pages cannot set response headers.** The `headers()` config this
+ *   file used to export is silently ignored by `output: "export"`, so
+ *   Content-Security-Policy now ships as a `<meta http-equiv>` tag in
+ *   app/layout.tsx, and the header-only policies have no equivalent at all:
  *
- * The residual risk this leaves is HTML injection, and the codebase currently
- * has no vector for it: no `dangerouslySetInnerHTML`, no `eval`, no
- * `new Function`, no third-party script origins, self-hosted fonts, and every
- * browser fetch is same-origin. Adding any of those should mean revisiting
- * this comment. See docs/SECURITY.md.
+ *     - `Strict-Transport-Security` — gone. GitHub Pages sends its own HSTS on
+ *       `*.github.io` (that domain is preloaded), so custom domains are the
+ *       exposed case; a custom domain needs HSTS from a fronting CDN.
+ *     - `X-Frame-Options` — gone, but `frame-ancestors 'none'` in the meta CSP
+ *       covers clickjacking for every browser that matters.
+ *     - `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`,
+ *       COOP/CORP — no meta equivalent exists for these. `Referrer-Policy` is
+ *       partly recovered with a `<meta name="referrer">` tag; the rest are
+ *       accepted losses of defence-in-depth, documented in docs/SECURITY.md.
  *
- * `style-src` allows inline styles because React renders `style={{...}}` props
- * as style attributes throughout the app; that is a much narrower risk than
- * inline script.
+ * `connect-src` has to widen from `'self'` to the Convex deployment, since the
+ * browser now talks to Convex directly instead of through a server route. That
+ * is the visible cost of moving the backend out of the app.
  */
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
-  "style-src 'self' 'unsafe-inline'",
-  // data: covers the TOTP enrolment QR code, which is generated as a data URL.
-  "img-src 'self' data: blob:",
-  "font-src 'self'",
-  // Convex is only ever reached from server code, so it is not listed here.
-  // Revisit if a client component ever talks to a provider directly.
-  "connect-src 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'none'",
-  "frame-src 'none'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  ...(isProduction ? ["upgrade-insecure-requests"] : []),
-].join("; ");
 
-const securityHeaders = [
-  { key: "Content-Security-Policy", value: contentSecurityPolicy },
-  { key: "X-Content-Type-Options", value: "nosniff" },
-  // Redundant with frame-ancestors above, kept for pre-CSP3 browsers.
-  { key: "X-Frame-Options", value: "DENY" },
-  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=(), interest-cohort=()" },
-  { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-  { key: "Cross-Origin-Resource-Policy", value: "same-origin" },
-  { key: "X-DNS-Prefetch-Control", value: "off" },
-];
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 const nextConfig: NextConfig = {
+  output: "export",
+  basePath: basePath || undefined,
+  // GitHub Pages serves `/some/path/` as `/some/path/index.html`; without
+  // trailing slashes a deep link resolves to a 404 page instead of the route.
+  trailingSlash: true,
+  // No image optimizer exists on a static host, so images must be emitted as-is.
+  images: { unoptimized: true },
   poweredByHeader: false,
   turbopack: { root: process.cwd() },
-  async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: isProduction
-          ? [
-              ...securityHeaders,
-              // Two years, subdomains included, preload-eligible. Browsers
-              // ignore HSTS over plain http, so this is inert in local dev.
-              { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-            ]
-          : securityHeaders,
-      },
-    ];
-  },
 };
 
 export default nextConfig;

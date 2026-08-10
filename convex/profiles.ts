@@ -13,7 +13,7 @@ const profileFields = {
 export const create = mutation({
   args: { organizationId: v.id("organizations"), ...profileFields },
   handler: async (ctx, args) => {
-    const { identity } = await requireMembership(ctx, args.organizationId, ["owner", "member"]);
+    const { user } = await requireMembership(ctx, args.organizationId, ["owner", "member"]);
     const parsed = startupProfileSchema.parse(args);
     const { organizationId } = args;
     const profile = {
@@ -32,7 +32,7 @@ export const create = mutation({
       targetRegions: parsed.targetRegions,
     };
     const startupProfileId = await ctx.db.insert("startupProfiles", { organizationId, ...profile, status: "draft", consentRecordedAt: Date.now(), updatedAt: Date.now() });
-    await ctx.db.insert("auditEvents", { organizationId, actorId: identity.tokenIdentifier, action: "profile.created", entityType: "startupProfile", entityId: startupProfileId, createdAt: Date.now() });
+    await ctx.db.insert("auditEvents", { organizationId, actorId: user._id, action: "profile.created", entityType: "startupProfile", entityId: startupProfileId, createdAt: Date.now() });
     return { startupProfileId };
   },
 });
@@ -42,9 +42,9 @@ export const activate = mutation({
   handler: async (ctx, args) => {
     const profile = await ctx.db.get(args.startupProfileId);
     if (!profile || profile.status !== "draft") throw new Error("Only draft profiles can be activated");
-    const { identity } = await requireMembership(ctx, profile.organizationId, ["owner", "reviewer"]);
+    const { user } = await requireMembership(ctx, profile.organizationId, ["owner", "reviewer"]);
     await ctx.db.patch(profile._id, { status: "active", updatedAt: Date.now() });
-    await ctx.db.insert("auditEvents", { organizationId: profile.organizationId, actorId: identity.tokenIdentifier, action: "profile.activated", entityType: "startupProfile", entityId: profile._id, createdAt: Date.now() });
+    await ctx.db.insert("auditEvents", { organizationId: profile.organizationId, actorId: user._id, action: "profile.activated", entityType: "startupProfile", entityId: profile._id, createdAt: Date.now() });
   },
 });
 

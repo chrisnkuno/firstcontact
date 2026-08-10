@@ -1,55 +1,41 @@
 import { internalMutation } from "./_generated/server";
 
+/**
+ * Scheduled cleanup of expired, non-durable rows.
+ *
+ * Convex Auth manages the lifetime of its own session, refresh-token and
+ * verification-code tables, so this only sweeps what this application owns:
+ * the public rate limiter and the MFA step-up records.
+ *
+ * Everything with evidentiary value — audit log, webhook events, suppressions —
+ * is deliberately untouched. A suppression in particular must outlive any
+ * retention sweep, since deleting one silently re-permits contacting someone
+ * who asked not to be contacted.
+ */
 export const applyRetentionPolicy = internalMutation({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
+
     const expiredRateLimits = await ctx.db
-      .query("signupRateLimits")
+      .query("rateLimits")
       .withIndex("by_expiry", (query) => query.lt("expiresAt", now))
       .take(500);
     await Promise.all(expiredRateLimits.map((record) => ctx.db.delete(record._id)));
 
-    const expiredAdminSessions = await ctx.db
-      .query("adminSessions")
+    const expiredStepUps = await ctx.db
+      .query("sessionMfaVerifications")
       .withIndex("by_expiry", (query) => query.lt("expiresAt", now))
       .take(500);
-    await Promise.all(expiredAdminSessions.map((record) => ctx.db.delete(record._id)));
+    await Promise.all(expiredStepUps.map((record) => ctx.db.delete(record._id)));
 
-    const expiredAdminLoginAttempts = await ctx.db
-      .query("adminLoginAttempts")
-      .withIndex("by_expiry", (query) => query.lt("expiresAt", now))
-      .take(500);
-    await Promise.all(expiredAdminLoginAttempts.map((record) => ctx.db.delete(record._id)));
-
-    const expiredAdminMfaChallenges = await ctx.db
-      .query("adminMfaChallenges")
-      .withIndex("by_expiry", (query) => query.lt("expiresAt", now))
-      .take(500);
-    await Promise.all(expiredAdminMfaChallenges.map((record) => ctx.db.delete(record._id)));
-
-    const expiredFounderSessions = await ctx.db
-      .query("founderSessions")
-      .withIndex("by_expiry", (query) => query.lt("expiresAt", now))
-      .take(500);
-    await Promise.all(expiredFounderSessions.map((record) => ctx.db.delete(record._id)));
-
-    const expiredFounderLoginAttempts = await ctx.db
-      .query("founderLoginAttempts")
-      .withIndex("by_expiry", (query) => query.lt("expiresAt", now))
-      .take(500);
-    await Promise.all(expiredFounderLoginAttempts.map((record) => ctx.db.delete(record._id)));
-
-    // Intentionally conservative: implement deployment-specific deletion only after
-    // the operator documents retention requirements and legal holds.
+    // Intentionally conservative: implement deployment-specific deletion of
+    // personal data only after the operator documents retention requirements
+    // and legal holds.
     return {
       status: "policy_required",
-      expiredSignupRateLimitsDeleted: expiredRateLimits.length,
-      expiredAdminSessionsDeleted: expiredAdminSessions.length,
-      expiredAdminLoginAttemptsDeleted: expiredAdminLoginAttempts.length,
-      expiredAdminMfaChallengesDeleted: expiredAdminMfaChallenges.length,
-      expiredFounderSessionsDeleted: expiredFounderSessions.length,
-      expiredFounderLoginAttemptsDeleted: expiredFounderLoginAttempts.length,
+      expiredRateLimitsDeleted: expiredRateLimits.length,
+      expiredStepUpsDeleted: expiredStepUps.length,
     };
   },
 });

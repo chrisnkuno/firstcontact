@@ -30,7 +30,7 @@ export default function SystemPage() {
 
       <h2>03 · Control — people hold the edge</h2>
       <p>
-        Approval, jurisdiction, identity, suppression, and rate-limit gates all fail closed. <code>POST /api/send</code> requires an
+        Approval, jurisdiction, identity, suppression, and rate-limit gates all fail closed. <code>outreach:sendApproved</code> requires an
         explicit outbound flag, operator token, approved message, public source, reviewed jurisdiction, clear suppression check, sender
         postal identity, unsubscribe link, and a stable idempotency key — see{" "}
         <Link href="/responsible-outreach">Responsible outreach</Link> for the full list.

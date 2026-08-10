@@ -13,6 +13,7 @@ import {
   LoaderCircle,
 } from "lucide-react";
 import { T, useTranslation } from "@/components/translation-provider";
+import { PUBLIC_ENDPOINTS, convexEndpoint } from "@/lib/convex-endpoints";
 import { normalizeSignupWebsite } from "@/lib/domain";
 
 const accountTypes = [
@@ -209,7 +210,9 @@ export function ApplyForm() {
 
     try {
       const website = normalizeSignupWebsite(form.website);
-      const response = await fetch("/api/signups", {
+      const endpoint = convexEndpoint(PUBLIC_ENDPOINTS.signups);
+      if (!endpoint) throw new Error("This build has no backend configured, so signups cannot be saved.");
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
