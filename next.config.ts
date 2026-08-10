@@ -28,11 +28,13 @@ import type { NextConfig } from "next";
  * is the visible cost of moving the backend out of the app.
  */
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+// Empty-safe: GitHub Actions substitutes an unset repository variable as an
+// empty string, not as an absent one.
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH?.trim() || undefined;
 
 const nextConfig: NextConfig = {
   output: "export",
-  basePath: basePath || undefined,
+  basePath,
   // GitHub Pages serves `/some/path/` as `/some/path/index.html`; without
   // trailing slashes a deep link resolves to a 404 page instead of the route.
   trailingSlash: true,

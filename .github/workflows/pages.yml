@@ -37,6 +37,20 @@ jobs:
           bun-version: ${{ env.BUN_VERSION }}
       - run: bun install --frozen-lockfile
 
+      # The build itself degrades gracefully without a backend — every
+      # Convex-reading component renders a "not configured" state instead of
+      # throwing. That is right for a fork building the marketing site, but
+      # wrong for a *deploy*: publishing a site where nobody can sign in should
+      # be a loud failure, not a quiet success.
+      - name: Require a backend before publishing
+        if: ${{ vars.NEXT_PUBLIC_CONVEX_URL == '' }}
+        run: |
+          echo "::error::NEXT_PUBLIC_CONVEX_URL repository variable is not set."
+          echo "Publishing without it would deploy a site with no working accounts,"
+          echo "dashboards or signups. Set it under Settings → Secrets and variables"
+          echo "→ Actions → Variables. See docs/DEPLOYMENT.md §2."
+          exit 1
+
       - name: Build
         env:
           # Inlined into the bundle at build time. NEXT_PUBLIC_CONVEX_URL is not

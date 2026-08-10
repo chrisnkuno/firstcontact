@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { AlertTriangle, Loader2, LogIn, UserPlus } from "lucide-react";
+import { isConvexConfigured } from "@/lib/convex-endpoints";
 import {
   INVESTOR_TYPE_LABELS,
   investorTypes,
@@ -52,7 +53,32 @@ function friendlyError(error: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
+/**
+ * Shown instead of a sign-in or sign-up form when the build has no backend.
+ *
+ * Rendered *before* any Convex hook runs. `useAuthActions()` returns undefined
+ * without a `ConvexAuthProvider` above it, and destructuring that throws — which
+ * is a build failure, not a runtime one, because these pages are prerendered.
+ */
+function AuthUnavailable({ title }: { title: string }) {
+  return (
+    <section className="auth-card">
+      <span>ACCOUNT</span>
+      <h1>{title}</h1>
+      <p>
+        This build has no backend configured, so accounts cannot be created or used.{" "}
+        <code>NEXT_PUBLIC_CONVEX_URL</code> must be set at build time.
+      </p>
+    </section>
+  );
+}
+
 export function SignInForm({ redirectTo = "/dashboard" }: { redirectTo?: string }) {
+  if (!isConvexConfigured) return <AuthUnavailable title="Sign in is unavailable" />;
+  return <SignInFormInner redirectTo={redirectTo} />;
+}
+
+function SignInFormInner({ redirectTo }: { redirectTo: string }) {
   const { signIn } = useAuthActions();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -108,6 +134,11 @@ export function SignInForm({ redirectTo = "/dashboard" }: { redirectTo?: string 
 }
 
 export function SignUpForm() {
+  if (!isConvexConfigured) return <AuthUnavailable title="Account creation is unavailable" />;
+  return <SignUpFormInner />;
+}
+
+function SignUpFormInner() {
   const { signIn } = useAuthActions();
   const router = useRouter();
   const [role, setRole] = useState<Exclude<AccountRole, "admin">>("participant");
@@ -245,6 +276,13 @@ export function SignUpForm() {
 }
 
 export function SignOutButton() {
+  // Only ever rendered inside DashboardShell, which already refuses to mount
+  // without a backend — but guarded independently so it stays safe if reused.
+  if (!isConvexConfigured) return null;
+  return <SignOutButtonInner />;
+}
+
+function SignOutButtonInner() {
   const { signOut } = useAuthActions();
   const router = useRouter();
   return (

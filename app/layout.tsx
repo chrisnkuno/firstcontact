@@ -3,6 +3,7 @@ import "@fontsource-variable/space-grotesk";
 import "./globals.css";
 import { TranslationProvider } from "@/components/translation-provider";
 import { ConvexClientProvider } from "@/components/convex-provider";
+import { convexOrigins, siteOrigin } from "@/lib/site-config";
 
 /**
  * Content-Security-Policy, as a meta tag.
@@ -24,10 +25,7 @@ import { ConvexClientProvider } from "@/components/convex-provider";
  * streams its RSC payload as inline scripts, and a statically exported page has
  * no request from which to mint a nonce.
  */
-const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL ?? "";
-const convexOrigin = convexUrl ? new URL(convexUrl).origin : "";
-const convexSiteOrigin = convexOrigin.replace(".convex.cloud", ".convex.site");
-const convexSocket = convexOrigin.replace("https://", "wss://");
+const convex = convexOrigins();
 
 const contentSecurityPolicy = [
   "default-src 'self'",
@@ -35,7 +33,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self'",
-  ["connect-src 'self'", convexOrigin, convexSiteOrigin, convexSocket].filter(Boolean).join(" "),
+  ["connect-src 'self'", convex?.api, convex?.site, convex?.socket].filter(Boolean).join(" "),
   "form-action 'self'",
   "frame-ancestors 'none'",
   "frame-src 'none'",
@@ -48,7 +46,7 @@ export const metadata: Metadata = {
   title: { default: "FirstContact — Capital should travel further", template: "%s · FirstContact" },
   description:
     "Open-source infrastructure connecting overlooked founders and institutions with aligned global investors.",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(siteOrigin()),
   applicationName: "FirstContact",
   authors: [{ name: "FirstContact contributors", url: "https://github.com/chrisnkuno/firstcontact" }],
   keywords: ["venture capital", "fundraising", "startup infrastructure", "impact investing", "open source"],
