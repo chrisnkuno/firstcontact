@@ -253,3 +253,81 @@ describe("describeFailures", () => {
     expect(summary).not.toContain("Bearer");
   });
 });
+
+describe("OpenAI-compatible gateways without strict schema support", () => {
+  // CircuitNotion, some OpenRouter routes and self-hosted gateways accept
+  // chat completions but reject `response_format: json_schema`. Without the
+  // retry these providers would be unusable for the only thing this codebase
+  // asks a model to do.
+  it("retries in plain JSON mode when the gateway rejects json_schema", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ error: "unknown parameter response_format" }, 400))
+      .mockResolvedValueOnce(
+        jsonResponse({ choices: [{ message: { content: '{"subject":"ok","body":"b","claimsToVerify":[]}' } }] }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await structuredCompletion<{ subject: string }>(
+      [
+        {
+          kind: "openai-chat",
+          name: "circuitnotion",
+          apiKey: "k",
+          model: "circuit-2-turbo",
+          baseUrl: "https://api.circuitnotion.com/v1",
+        },
+      ],
+      {
+        instructions: "draft",
+        input: {},
+        schemaName: "outreach_draft",
+        schema: { type: "object", required: ["subject", "body", "claimsToVerify"] },
+      },
+    );
+
+    expect(result).toMatchObject({ ok: true, provider: "circuitnotion", data: { subject: "ok" } });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // The retry must carry the schema in the prompt, since the parameter was refused.
+    const retryBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(retryBody.response_format).toEqual({ type: "json_object" });
+    expect(retryBody.messages[0].content).toContain("JSON Schema");
+  });
+
+  it("strips a markdown code fence that plain JSON mode often adds", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({ choices: [{ message: { content: '```json\n{"subject":"fenced"}\n```' } }] }),
+      ),
+    );
+    const result = await structuredCompletion<{ subject: string }>(
+      [{ kind: "openai-chat", name: "gw", apiKey: "k", model: "m", baseUrl: "https://gw.example/v1" }],
+      { instructions: "i", input: {}, schemaName: "s", schema: {} },
+    );
+    expect(result).toMatchObject({ ok: true, data: { subject: "fenced" } });
+  });
+
+  // Without strict mode the gateway guarantees nothing about shape, so a reply
+  // missing a required field must be rejected rather than passed downstream.
+  it("rejects a response missing required fields", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ choices: [{ message: { content: '{"subject":"only"}' } }] })),
+    );
+    const result = await structuredCompletion(
+      [{ kind: "openai-chat", name: "gw", apiKey: "k", model: "m", baseUrl: "https://gw.example/v1" }],
+      {
+        instructions: "i",
+        input: {},
+        schemaName: "s",
+        schema: { type: "object", required: ["subject", "body"] },
+      },
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.failures[0].code).toBe("malformed_response");
+      expect(result.failures[0].message).toContain("body");
+    }
+  });
+});

@@ -162,31 +162,75 @@ async function openAiResponses<T>(
   return parseJson<T>(config.name, text);
 }
 
-/** Any OpenAI-compatible `/chat/completions` endpoint. */
+/**
+ * Any OpenAI-compatible `/chat/completions` endpoint.
+ *
+ * Strict `json_schema` output is requested first, then retried once in plain
+ * JSON mode if the gateway rejects it. That second attempt is not paranoia:
+ * "OpenAI-compatible" in practice means chat completions and streaming, and
+ * many gateways (CircuitNotion, some OpenRouter routes, self-hosted vLLM)
+ * implement neither strict schemas nor function calling. Without the fallback,
+ * every such provider would be unusable for the only thing this codebase asks a
+ * model to do.
+ *
+ * Retrying the *same* provider with a simpler request shape is deliberately
+ * different from failing over to the next one: the request was rejected for its
+ * form, not its content, so reshaping it is the correct response where
+ * replaying it elsewhere would not be.
+ */
 async function openAiChat<T>(
   config: LlmProviderConfig,
   request: StructuredRequest,
 ): Promise<ProviderResult<T>> {
   const url = `${config.baseUrl ?? "https://api.openai.com/v1"}/chat/completions`;
-  let response: Response;
-  try {
-    response = await fetch(url, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${config.apiKey}` },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: "system", content: request.instructions },
-          { role: "user", content: JSON.stringify(request.input) },
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: { name: request.schemaName, strict: true, schema: request.schema },
-        },
-      }),
-    });
-  } catch {
+
+  const post = async (body: unknown): Promise<Response | null> => {
+    try {
+      return await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${config.apiKey}` },
+        body: JSON.stringify(body),
+      });
+    } catch {
+      return null;
+    }
+  };
+
+  const baseMessages = [
+    { role: "system", content: request.instructions },
+    { role: "user", content: JSON.stringify(request.input) },
+  ];
+
+  let response = await post({
+    model: config.model,
+    messages: baseMessages,
+    response_format: {
+      type: "json_schema",
+      json_schema: { name: request.schemaName, strict: true, schema: request.schema },
+    },
+  });
+  if (response === null) {
     return { ok: false, failures: [failure(config.name, "network_error", `${config.name} was unreachable`)] };
+  }
+
+  // 400/404/422 here means "I do not understand response_format", not "your
+  // content was bad" — so describe the shape in the prompt instead and ask for
+  // plain JSON.
+  if (response.status === 400 || response.status === 404 || response.status === 422) {
+    response = await post({
+      model: config.model,
+      messages: [
+        {
+          role: "system",
+          content: `${request.instructions}\n\nRespond with a single JSON object and nothing else. It must match this JSON Schema exactly:\n${JSON.stringify(request.schema)}`,
+        },
+        baseMessages[1],
+      ],
+      response_format: { type: "json_object" },
+    });
+    if (response === null) {
+      return { ok: false, failures: [failure(config.name, "network_error", `${config.name} was unreachable`)] };
+    }
   }
 
   if (!response.ok) return { ok: false, failures: [statusFailure(config.name, response.status)] };
@@ -198,7 +242,47 @@ async function openAiChat<T>(
   if (!text) {
     return { ok: false, failures: [failure(config.name, "empty_response", `${config.name} returned no output`)] };
   }
-  return parseJson<T>(config.name, text);
+
+  const parsed = parseJson<T>(config.name, stripCodeFence(text));
+  if (!parsed.ok) return parsed;
+  // Without strict mode the gateway guarantees nothing about shape, so the
+  // schema's own required list is checked before the value is handed onward.
+  return enforceRequiredKeys<T>(config.name, parsed.data, request.schema);
+}
+
+/**
+ * Removes a ```json fence, which models in plain-JSON mode frequently add
+ * despite being told not to.
+ */
+function stripCodeFence(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed.startsWith("```")) return trimmed;
+  return trimmed.replace(/^```(?:json)?\s*/i, "").replace(/```$/, "").trim();
+}
+
+function enforceRequiredKeys<T>(
+  provider: string,
+  data: T,
+  schema: Record<string, unknown>,
+): ProviderResult<T> {
+  const required = Array.isArray(schema.required) ? (schema.required as string[]) : [];
+  if (required.length === 0) return { ok: true, provider, data };
+  if (typeof data !== "object" || data === null) {
+    return {
+      ok: false,
+      failures: [failure(provider, "malformed_response", `${provider} did not return an object`)],
+    };
+  }
+  const missing = required.filter((key) => !(key in (data as Record<string, unknown>)));
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      failures: [
+        failure(provider, "malformed_response", `${provider} omitted required fields: ${missing.join(", ")}`),
+      ],
+    };
+  }
+  return { ok: true, provider, data };
 }
 
 /**

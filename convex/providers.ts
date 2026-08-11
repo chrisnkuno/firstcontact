@@ -54,6 +54,7 @@ const DEFAULT_MODELS: Record<string, string> = {
   openai: "gpt-5.4-nano",
   anthropic: "claude-haiku-4-5-20251001",
   openrouter: "openai/gpt-5.4-nano",
+  circuitnotion: "circuit-2-turbo",
   groq: "llama-3.3-70b-versatile",
   deepseek: "deepseek-chat",
   together: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
@@ -61,6 +62,13 @@ const DEFAULT_MODELS: Record<string, string> = {
 
 const OPENAI_COMPATIBLE_BASE_URLS: Record<string, string> = {
   openrouter: "https://openrouter.ai/api/v1",
+  // CircuitNotion exposes an OpenAI-compatible surface, so it needs no adapter
+  // of its own. Its documentation covers chat completions and streaming but
+  // does not mention strict json_schema or function calling — the openai-chat
+  // adapter retries in plain JSON mode when a gateway rejects the schema, which
+  // is what makes this usable for structured drafting. Worth re-checking as
+  // their API matures.
+  circuitnotion: "https://api.circuitnotion.com/v1",
   groq: "https://api.groq.com/openai/v1",
   deepseek: "https://api.deepseek.com/v1",
   together: "https://api.together.xyz/v1",
