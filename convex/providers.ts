@@ -1,175 +1,160 @@
+import type {
+  EmailProviderConfig,
+  LlmProviderConfig,
+  SearchProviderConfig,
+} from "../lib/providers";
+
+export {
+  describeFailures,
+  sendEmail,
+  structuredCompletion,
+  webSearch,
+  type ProviderResult,
+  type SearchResponse,
+} from "../lib/providers";
+
 /**
- * Thin REST clients for the three external providers.
+ * Resolves provider chains from the Convex deployment environment.
  *
- * Deliberately `fetch` rather than the `openai`, `resend` and `svix` SDKs.
- * Those packages pull in Node built-ins, which would force every calling
- * action into Convex's Node runtime — slower to start, and a much larger
- * dependency surface for what are three straightforward JSON endpoints. Using
- * fetch keeps all of this in the V8 runtime and removed three direct
- * dependencies outright.
+ * Each capability reads an ordered, comma-separated preference list and keeps
+ * only the entries whose credentials are actually present. That means a
+ * half-configured deployment degrades to the providers that *can* work rather
+ * than failing at call time on one that cannot — and a capability with nothing
+ * configured returns an empty chain, which callers surface as "unconfigured"
+ * rather than as an error.
  *
- * Every function here returns a discriminated result instead of throwing on a
- * provider error, because callers need to distinguish "the provider said no"
- * (surface it, do not retry) from "the network failed" (retryable) — an
- * exception flattens that distinction.
+ * Defaults preserve the original single-vendor behaviour, so an existing
+ * deployment that only sets `OPENAI_API_KEY`, `EXA_API_KEY` and `RESEND_API_KEY`
+ * keeps working with no new configuration.
  */
 
-export type ProviderResult<T> =
-  | { ok: true; data: T }
-  | { ok: false; status: number; code: string; message: string };
+function orderFrom(value: string | undefined, fallback: string[]): string[] {
+  const configured = value
+    ?.split(",")
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  return configured && configured.length > 0 ? configured : fallback;
+}
 
-const OPENAI_URL = "https://api.openai.com/v1/responses";
-const EXA_URL = "https://api.exa.ai/search";
-const RESEND_URL = "https://api.resend.com/emails";
-
-function failure(status: number, code: string, message: string): ProviderResult<never> {
-  return { ok: false, status, code, message };
+function env(name: string): string | undefined {
+  const value = process.env[name]?.trim();
+  return value ? value : undefined;
 }
 
 /**
- * OpenAI Responses API with a strict JSON schema.
+ * The default drafting model.
  *
- * `strict: true` plus `additionalProperties: false` is what makes the parsed
- * output safe to trust structurally — without it the model may return extra or
- * missing keys and every caller would need its own defensive parsing.
+ * `gpt-5.4-nano` rather than the `gpt-5-nano` this project shipped with:
+ * OpenAI documents it as the direct successor for exactly this class of
+ * work (cheap, fast, structured extraction and short generation). Override
+ * per-provider with `<PROVIDER>_MODEL` — a model id is a deployment decision
+ * that changes faster than this source does.
  */
-export async function openAiStructured<T>({
-  apiKey,
-  model,
-  instructions,
-  input,
-  schemaName,
-  schema,
-}: {
-  apiKey: string;
-  model: string;
-  instructions: string;
-  input: unknown;
-  schemaName: string;
-  schema: Record<string, unknown>;
-}): Promise<ProviderResult<T>> {
-  let response: Response;
-  try {
-    response = await fetch(OPENAI_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({
-        model,
-        instructions,
-        input: JSON.stringify(input),
-        text: {
-          format: { type: "json_schema", name: schemaName, strict: true, schema },
-        },
-      }),
-    });
-  } catch {
-    return failure(502, "network_error", "The language model provider was unreachable");
+const DEFAULT_MODELS: Record<string, string> = {
+  openai: "gpt-5.4-nano",
+  anthropic: "claude-haiku-4-5-20251001",
+  openrouter: "openai/gpt-5.4-nano",
+  groq: "llama-3.3-70b-versatile",
+  deepseek: "deepseek-chat",
+  together: "meta-llama/Llama-3.3-70B-Instruct-Turbo",
+};
+
+const OPENAI_COMPATIBLE_BASE_URLS: Record<string, string> = {
+  openrouter: "https://openrouter.ai/api/v1",
+  groq: "https://api.groq.com/openai/v1",
+  deepseek: "https://api.deepseek.com/v1",
+  together: "https://api.together.xyz/v1",
+};
+
+export function llmProviders(): LlmProviderConfig[] {
+  const order = orderFrom(env("LLM_PROVIDER_ORDER"), ["openai", "anthropic"]);
+  const configs: LlmProviderConfig[] = [];
+
+  for (const name of order) {
+    if (name === "openai") {
+      const apiKey = env("OPENAI_API_KEY");
+      if (apiKey) {
+        configs.push({
+          kind: "openai-responses",
+          name: "openai",
+          apiKey,
+          model: env("OPENAI_MODEL") ?? DEFAULT_MODELS.openai,
+          baseUrl: env("OPENAI_BASE_URL"),
+        });
+      }
+      continue;
+    }
+
+    if (name === "anthropic") {
+      const apiKey = env("ANTHROPIC_API_KEY");
+      if (apiKey) {
+        configs.push({
+          kind: "anthropic",
+          name: "anthropic",
+          apiKey,
+          model: env("ANTHROPIC_MODEL") ?? DEFAULT_MODELS.anthropic,
+          baseUrl: env("ANTHROPIC_BASE_URL"),
+        });
+      }
+      continue;
+    }
+
+    // Everything else is treated as an OpenAI-compatible chat endpoint, which
+    // covers OpenRouter, Groq, DeepSeek, Together and self-hosted gateways
+    // without needing a bespoke adapter for each.
+    const upper = name.toUpperCase().replace(/[^A-Z0-9]/g, "_");
+    const apiKey = env(`${upper}_API_KEY`);
+    const baseUrl = env(`${upper}_BASE_URL`) ?? OPENAI_COMPATIBLE_BASE_URLS[name];
+    const model = env(`${upper}_MODEL`) ?? DEFAULT_MODELS[name];
+    if (apiKey && baseUrl && model) {
+      configs.push({ kind: "openai-chat", name, apiKey, model, baseUrl });
+    }
   }
 
-  if (!response.ok) {
-    return failure(502, "provider_error", `Language model provider returned ${response.status}`);
-  }
+  return configs;
+}
 
-  const payload = (await response.json()) as {
-    output_text?: string;
-    output?: { content?: { text?: string }[] }[];
+export function searchProviders(): SearchProviderConfig[] {
+  const order = orderFrom(env("SEARCH_PROVIDER_ORDER"), ["exa", "tavily", "brave"]);
+  const keys: Record<string, string | undefined> = {
+    exa: env("EXA_API_KEY"),
+    tavily: env("TAVILY_API_KEY"),
+    brave: env("BRAVE_API_KEY"),
   };
-  const text = payload.output_text ?? payload.output?.[0]?.content?.[0]?.text;
-  if (!text) return failure(502, "empty_response", "The language model returned no output");
 
-  try {
-    return { ok: true, data: JSON.parse(text) as T };
-  } catch {
-    return failure(502, "malformed_response", "The language model returned unparseable output");
-  }
+  return order
+    .filter((name): name is "exa" | "tavily" | "brave" => name in keys && Boolean(keys[name]))
+    .map((name) => ({ kind: name, name, apiKey: keys[name]! }));
 }
 
-export type ExaResult = { title?: string; url?: string; author?: string; highlights?: string[] };
+export function emailProviders(): EmailProviderConfig[] {
+  const order = orderFrom(env("EMAIL_PROVIDER_ORDER"), ["resend", "postmark", "sendgrid"]);
+  const sharedFrom = env("EMAIL_FROM") ?? env("RESEND_FROM");
 
-export async function exaSearch({
-  apiKey,
-  query,
-  numResults = 20,
-}: {
-  apiKey: string;
-  query: string;
-  numResults?: number;
-}): Promise<ProviderResult<{ requestId?: string; results: ExaResult[] }>> {
-  let response: Response;
-  try {
-    response = await fetch(EXA_URL, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": apiKey },
-      body: JSON.stringify({
-        query,
-        type: "deep-lite",
-        category: "company",
-        numResults,
-        contents: { highlights: { maxCharacters: 1600 } },
-        moderation: true,
-      }),
-    });
-  } catch {
-    return failure(502, "network_error", "The discovery provider was unreachable");
+  const definitions: Record<string, { kind: EmailProviderConfig["kind"]; apiKey?: string; from?: string }> = {
+    resend: { kind: "resend", apiKey: env("RESEND_API_KEY"), from: env("RESEND_FROM") ?? sharedFrom },
+    postmark: { kind: "postmark", apiKey: env("POSTMARK_API_KEY"), from: env("POSTMARK_FROM") ?? sharedFrom },
+    sendgrid: { kind: "sendgrid", apiKey: env("SENDGRID_API_KEY"), from: env("SENDGRID_FROM") ?? sharedFrom },
+  };
+
+  const configs: EmailProviderConfig[] = [];
+  for (const name of order) {
+    const definition = definitions[name];
+    // A sending address is as load-bearing as the key: a provider configured
+    // without one would fail at send time, after the policy gates have already
+    // passed and the operator believes the message is going out.
+    if (definition?.apiKey && definition.from) {
+      configs.push({ kind: definition.kind, name, apiKey: definition.apiKey, from: definition.from });
+    }
   }
-
-  if (!response.ok) {
-    return failure(502, "provider_error", `Discovery provider returned ${response.status}`);
-  }
-
-  const payload = (await response.json()) as { requestId?: string; results?: ExaResult[] };
-  return { ok: true, data: { requestId: payload.requestId, results: payload.results ?? [] } };
+  return configs;
 }
 
-export async function resendSend({
-  apiKey,
-  from,
-  to,
-  subject,
-  text,
-  unsubscribeUrl,
-  idempotencyKey,
-}: {
-  apiKey: string;
-  from: string;
-  to: string;
-  subject: string;
-  text: string;
-  unsubscribeUrl: string;
-  idempotencyKey: string;
-}): Promise<ProviderResult<{ id: string | null }>> {
-  let response: Response;
-  try {
-    response = await fetch(RESEND_URL, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${apiKey}`,
-        // Resend deduplicates on this key, which is what makes a retry after a
-        // network timeout safe: the recipient cannot receive the message twice.
-        "Idempotency-Key": idempotencyKey,
-      },
-      body: JSON.stringify({
-        from,
-        to,
-        subject,
-        text,
-        headers: {
-          "List-Unsubscribe": `<${unsubscribeUrl}>`,
-          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-        },
-        tags: [{ name: "application", value: "firstcontact" }],
-      }),
-    });
-  } catch {
-    return failure(502, "network_error", "The email provider was unreachable");
-  }
-
-  if (!response.ok) {
-    const detail = (await response.json().catch(() => null)) as { message?: string } | null;
-    return failure(502, "provider_error", detail?.message ?? `Email provider returned ${response.status}`);
-  }
-
-  const payload = (await response.json()) as { id?: string };
-  return { ok: true, data: { id: payload.id ?? null } };
+/** Capability readiness, for the operator dashboard and deployment checks. */
+export function providerReadiness() {
+  return {
+    llm: llmProviders().map((config) => ({ name: config.name, model: config.model })),
+    search: searchProviders().map((config) => config.name),
+    email: emailProviders().map((config) => config.name),
+  };
 }

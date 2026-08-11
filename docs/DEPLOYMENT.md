@@ -106,17 +106,44 @@ Roles cannot be self-assigned — `admin` is rejected from any sign-up payload.
 
 ## 4. Providers
 
-Every integration reports itself as unconfigured rather than fabricating output.
-Discovery with no `EXA_API_KEY` returns nothing and says so; it no longer returns
-sample investors.
+Each of the three capabilities — language model, web search, email — takes an
+**ordered chain** and uses the first provider whose credentials are present.
+On a transport error or a 5xx it falls through to the next. On a 4xx it stops:
+the request itself was wrong, so replaying it elsewhere would fail identically
+while exposing the same founder data to one more processor.
+
+A capability with nothing configured reports itself as unconfigured. Discovery
+with no search key returns nothing and says so; it never returns sample
+investors.
 
 ```bash
-bunx convex env set OPENAI_API_KEY ...     # drafting and UI translation
-bunx convex env set EXA_API_KEY ...        # investor discovery
-bunx convex env set RESEND_API_KEY ...     # delivery
-bunx convex env set RESEND_FROM ...
+# Language model (drafting, UI translation)
+bunx convex env set LLM_PROVIDER_ORDER "openai,anthropic"
+bunx convex env set OPENAI_API_KEY ...
+bunx convex env set OPENAI_MODEL "gpt-5.4-nano"
+bunx convex env set ANTHROPIC_API_KEY ...      # optional failover
+
+# Web search (investor discovery)
+bunx convex env set SEARCH_PROVIDER_ORDER "exa,tavily"
+bunx convex env set EXA_API_KEY ...
+bunx convex env set TAVILY_API_KEY ...         # optional failover
+
+# Email delivery
+bunx convex env set EMAIL_PROVIDER_ORDER "resend,postmark"
+bunx convex env set RESEND_API_KEY ...
+bunx convex env set RESEND_FROM "outreach@yourdomain.example"
 bunx convex env set RESEND_WEBHOOK_SECRET ...
 ```
+
+**Model ids are deployment configuration, not source.** The default is
+`gpt-5.4-nano`, documented by OpenAI as the successor to `gpt-5-nano` for cheap,
+fast structured work. Note there is no `gpt-5.5-nano`; the 5.5 line is the
+flagship tier. Override with `OPENAI_MODEL` as the lineup moves.
+
+Any OpenAI-compatible gateway works without new code: set
+`<NAME>_API_KEY`, `<NAME>_BASE_URL` and `<NAME>_MODEL`, then add `<name>` to
+`LLM_PROVIDER_ORDER`. `openrouter`, `groq`, `deepseek` and `together` have
+built-in base URLs.
 
 Point the Resend webhook at `https://your-deployment.convex.site/webhooks/resend`
 and subscribe to sent, delivered, delayed, bounced, complained, failed and

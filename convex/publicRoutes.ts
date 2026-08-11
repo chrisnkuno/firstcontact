@@ -3,7 +3,7 @@ import { internal } from "./_generated/api";
 import { z } from "zod";
 import { catalogueInterestSchema, interestSignupSchema } from "../lib/domain";
 import { supportedLanguages } from "../lib/languages";
-import { openAiStructured } from "./providers";
+import { llmProviders, structuredCompletion } from "./providers";
 import {
   configuredAllowedOrigins,
   isTrustedSubmissionOrigin,
@@ -154,8 +154,10 @@ export const translate = httpAction(async (ctx, request) => {
     return json({ mode: "identity", translated: false, translations: texts }, 200, origin);
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return json({ mode: "unconfigured", translated: false, translations: texts }, 200, origin);
+  const providers = llmProviders();
+  if (providers.length === 0) {
+    return json({ mode: "unconfigured", translated: false, translations: texts }, 200, origin);
+  }
 
   const limiterSecret = process.env.RATE_LIMIT_SECRET;
   if (limiterSecret) {
@@ -176,9 +178,7 @@ export const translate = httpAction(async (ctx, request) => {
   }
 
   const language = supportedLanguages.find((entry) => entry.code === target);
-  const result = await openAiStructured<{ translations: string[] }>({
-    apiKey,
-    model: process.env.OPENAI_MODEL ?? "gpt-5-nano",
+  const result = await structuredCompletion<{ translations: string[] }>(providers, {
     instructions: `Translate each string in the input array into ${language?.label ?? target} (${language?.nativeLabel ?? target}). Keep the same order and count as the input. Preserve numbers, product names like "FirstContact", and placeholders exactly. Keep the tone concise and natural for interface copy.`,
     input: { texts },
     schemaName: "ui_translations",

@@ -5,7 +5,15 @@ import type { Id } from "./_generated/dataModel";
 import { requireMembership, recordAudit } from "./authz";
 import { evaluateContactPolicy } from "../lib/compliance";
 import { hashEmail } from "../lib/email-hash";
-import { exaSearch, openAiStructured, resendSend } from "./providers";
+import {
+  describeFailures,
+  emailProviders,
+  llmProviders,
+  searchProviders,
+  sendEmail,
+  structuredCompletion,
+  webSearch,
+} from "./providers";
 
 /**
  * The outreach agent surface: discover → draft → approve → send.
@@ -16,8 +24,6 @@ import { exaSearch, openAiStructured, resendSend } from "./providers";
  * enforceable if generating and delivering are distinct operations with
  * distinct authorization, rather than one "do outreach" call.
  */
-
-const DEFAULT_MODEL = "gpt-5-nano";
 
 /* ------------------------------------------------------------------ *
  * Discovery
@@ -34,8 +40,8 @@ export const discover = action({
       requiredRoles: ["owner", "member"],
     });
 
-    const apiKey = process.env.EXA_API_KEY;
-    if (!apiKey) {
+    const providers = searchProviders();
+    if (providers.length === 0) {
       // No sample data. The previous implementation returned fabricated
       // "demo" investors here, which is precisely the failure mode this
       // codebase otherwise takes care to avoid — an unconfigured integration
@@ -43,7 +49,7 @@ export const discover = action({
       return {
         mode: "unconfigured",
         results: [],
-        notice: "Investor discovery is not configured on this deployment.",
+        notice: "No search provider is configured on this deployment.",
       };
     }
 
@@ -51,8 +57,8 @@ export const discover = action({
       args.query ??
       `Venture capital firms investing at ${context.stage} in ${context.sectors.join(", ")} companies across ${context.region}, with verified portfolio or investment thesis evidence`;
 
-    const result = await exaSearch({ apiKey, query });
-    if (!result.ok) throw new Error(result.message);
+    const result = await webSearch(providers, query);
+    if (!result.ok) throw new Error(`Investor discovery failed — ${describeFailures(result.failures)}`);
 
     // Sources are persisted before any contact record exists, so every
     // investor that later appears in a campaign is traceable to the page it
@@ -60,9 +66,9 @@ export const discover = action({
     await ctx.runMutation(internal.outreach.recordSources, {
       organizationId: context.organizationId,
       results: result.data.results.map((entry) => ({
-        url: entry.url ?? "",
+        url: entry.url,
         title: entry.title,
-        excerpt: entry.highlights?.join(" — ").slice(0, 2000),
+        excerpt: entry.highlights.join(" — ").slice(0, 2000) || undefined,
       })),
       providerRequestId: result.data.requestId,
     });
@@ -164,16 +170,16 @@ export const draft = action({
       organizationId: context.organizationId,
     });
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new Error("Drafting is not configured on this deployment.");
+    const providers = llmProviders();
+    if (providers.length === 0) {
+      throw new Error("No language-model provider is configured on this deployment.");
+    }
 
-    const result = await openAiStructured<{
+    const result = await structuredCompletion<{
       subject: string;
       body: string;
       claimsToVerify: string[];
-    }>({
-      apiKey,
-      model: process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
+    }>(providers, {
       instructions:
         "Draft a concise founder-to-investor introduction. Use only supplied facts. Never invent metrics, relationships, portfolio facts, or contact details. Be direct and specific. List every factual claim you made in claimsToVerify so a human can check it against the source.",
       input: {
@@ -188,7 +194,7 @@ export const draft = action({
       schemaName: "outreach_draft",
       schema: DRAFT_SCHEMA as unknown as Record<string, unknown>,
     });
-    if (!result.ok) throw new Error(result.message);
+    if (!result.ok) throw new Error(`Drafting failed — ${describeFailures(result.failures)}`);
 
     // Persisted as `draft`, never as `approved`. Nothing in this action can
     // produce a sendable message.
@@ -315,15 +321,14 @@ export const sendApproved = action({
       throw new Error(`Outbound policy blocked this message: ${policy.reasons.join("; ")}`);
     }
 
-    const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.RESEND_FROM;
-    if (!apiKey || !from) throw new Error("Email delivery is not configured on this deployment.");
+    const providers = emailProviders();
+    if (providers.length === 0) {
+      throw new Error("No email provider is configured on this deployment.");
+    }
     if (!context.to) throw new Error("This investor has no contact address on record");
 
     const postalAddress = process.env.SENDER_POSTAL_ADDRESS!;
-    const result = await resendSend({
-      apiKey,
-      from,
+    const result = await sendEmail(providers, {
       to: context.to,
       subject: context.subject,
       text: `${context.body}\n\n${postalAddress}\nUnsubscribe: ${args.unsubscribeUrl}`,
@@ -336,7 +341,7 @@ export const sendApproved = action({
         messageId: args.messageId,
         status: "failed",
       });
-      throw new Error(result.message);
+      throw new Error(`Delivery failed — ${describeFailures(result.failures)}`);
     }
 
     await ctx.runMutation(internal.outreach.markSendResult, {
