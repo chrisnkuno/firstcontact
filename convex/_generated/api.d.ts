@@ -17,6 +17,7 @@ import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as investors from "../investors.js";
 import type * as maintenance from "../maintenance.js";
+import type * as migrations from "../migrations.js";
 import type * as onboarding from "../onboarding.js";
 import type * as organizations from "../organizations.js";
 import type * as outreach from "../outreach.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   investors: typeof investors;
   maintenance: typeof maintenance;
+  migrations: typeof migrations;
   onboarding: typeof onboarding;
   organizations: typeof organizations;
   outreach: typeof outreach;

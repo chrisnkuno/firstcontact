@@ -216,6 +216,27 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_time", ["createdAt"]).index("by_actor", ["actorUserId"]),
 
+  /**
+   * Audit rows written by the pre-Convex-Auth admin system.
+   *
+   * Preserved rather than deleted. The old rows reference `adminUsers`, a table
+   * the Convex Auth migration removed, so they cannot satisfy the new
+   * `adminAuditLog` shape — but "application rollback must not roll back audit
+   * state" (docs/DEPLOYMENT.md) applies just as much to a schema migration.
+   * The actor is kept as an opaque string because the table it pointed at is
+   * gone; `actorEmail` carries the human-readable identity forward.
+   */
+  legacyAdminAuditLog: defineTable({
+    actorRef: v.string(),
+    actorEmail: v.optional(v.string()),
+    action: v.string(),
+    targetType: v.string(),
+    targetId: v.string(),
+    metadata: v.optional(v.any()),
+    createdAt: v.number(),
+    migratedAt: v.number(),
+  }).index("by_time", ["createdAt"]),
+
   // Generic keyed limiter backing the public, unauthenticated surfaces
   // (signup submission, catalogue interest). Convex Auth ships its own
   // limiter for password attempts, so this no longer covers login.
