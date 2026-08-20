@@ -12,6 +12,7 @@ import {
   requireUser,
 } from "./authz";
 import { buildOtpauthUri, generateTotpSecret, verifyTotp } from "../lib/totp";
+import { authEmailConfigured } from "./authEmail";
 
 const investorType = v.union(
   v.literal("angel"),
@@ -29,6 +30,28 @@ const participantKind = v.union(
   v.literal("institution"),
   v.literal("individual"),
 );
+
+/**
+ * What the account system on *this* deployment can actually do.
+ *
+ * The sign-in form needs this before it can honestly offer "Forgot password?":
+ * a deployment with no email provider cannot send a reset code, and a dead
+ * link is worse than an absent one. Public and unauthenticated by necessity —
+ * it is read on the sign-in screen — and it reveals only which capabilities
+ * are switched on, never any credential or provider key.
+ */
+export const authCapabilities = query({
+  args: {},
+  handler: async () => {
+    const emailConfigured = authEmailConfigured();
+    return {
+      passwordReset: emailConfigured,
+      emailVerification:
+        emailConfigured &&
+        process.env.REQUIRE_EMAIL_VERIFICATION?.trim().toLowerCase() !== "false",
+    };
+  },
+});
 
 export type ViewerMfa = {
   enrolled: boolean;

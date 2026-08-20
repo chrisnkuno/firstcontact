@@ -2,6 +2,97 @@
 
 ## Unreleased
 
+### Added — the two-sided loop
+
+- **Catalogue publication lifecycle.** `catalogueListings` previously had no
+  writer anywhere in the codebase: `listPublished` read it and nothing inserted
+  into it, so the catalogue was structurally incapable of ever being non-empty.
+  Founders now draft, submit and withdraw (`private → review → listed`), and
+  operators approve or send back. A founder controls entry and exit
+  unconditionally; an operator controls only the middle transition and cannot
+  publish a draft that was never submitted. Editing a live listing returns it to
+  review, so an approval cannot be reused for different text.
+- **Founder workspace at `/dashboard/organization`** — create an organization,
+  describe the company, write the public listing, and read who has been in
+  touch. Every mutation behind it already existed and was tested; none of it had
+  a user interface, so a founder could create an account and then do nothing.
+- **Founder interest inbox with accept/decline.** `investorInterests` rows were
+  written and never read by anything a founder could see. The investor's email
+  address is released to the founder only on accept, and the company website is
+  released to the investor only on accept — both pinned by tests.
+- **Operator listing review at `/admin/listings`**, behind MFA step-up, with the
+  decision and its reason written to the admin audit log.
+- **Password reset and email verification**, implemented over the existing
+  multi-provider email chain. Both are transactional and deliberately *not*
+  gated by `OUTBOUND_EMAIL_ENABLED`: holding a password reset behind the
+  outreach kill switch would lock every user out of their own account for as
+  long as outreach stayed disabled. Suppression lists are not consulted either.
+  New `REQUIRE_EMAIL_VERIFICATION` variable, defaulting to on wherever email is
+  configured and ignored where it is not.
+- **Profile routes `/dashboard/profile` and `/investor/profile`.** The
+  onboarding checklist had always linked to both; neither existed, so the first
+  action the product asked a new account to take was a dead link on both sides.
+- 20 new tests covering the publication lifecycle, the disclosure gates, tenant
+  isolation between founders, and the rule that every onboarding action points
+  at a route the app actually builds.
+
+### Added — operations and data protection
+
+- **Error capture and alerting.** Uncaught browser errors, React render errors
+  and Convex failures are recorded, grouped by fingerprint, and shown at
+  `/admin/errors`. An hourly cron emails `ALERT_EMAIL` when three or more
+  distinct problems appear within an hour. Previously a production failure was
+  discovered by a user reporting it: a static export has no server log to tail.
+- **Redaction before storage** (`lib/redaction.ts`): emails, JWTs, bearer
+  tokens, vendor keys, query strings, long digit runs and one-time codes are
+  stripped before an error is written. Redacting on read would leave the raw
+  value in the database, which is what a subject access request or a breach
+  would expose. No user id is stored — only a coarse role.
+- **Retention is implemented.** Unsuccessful signups (`new`, `reviewing`,
+  `declined`) are deleted 24 months after last contact. `invited` and `active`
+  records, and any record claimed by an account, are never swept. Suppressions
+  and audit logs never expire — deleting a suppression would silently re-permit
+  contacting someone who opted out. Configurable with
+  `SIGNUP_RETENTION_MONTHS`.
+- **Verifiable backups** (`scripts/backup.mjs`, `bun run backup`): wraps
+  `convex export` with a SHA-256, a provenance manifest, refusal to overwrite,
+  and a warning on a suspiciously small archive.
+- **`docs/RUNBOOKS.md`** — backup, restore rehearsal, error response, MFA
+  lockout, deletion requests, retention, orphaned-table purge, rollback.
+- **`docs/DATA_PROTECTION.md`** — what is collected, retention, lawful basis,
+  processors, and a collected list of open operator decisions. States plainly
+  that the controller is whoever runs a deployment, not the project.
+- 27 new tests covering redaction, fingerprinting, the capture ceiling, and the
+  retention sweep's non-actions.
+
+### Fixed
+
+- **CI's dependency audit was failing on `main`.** The `nanoid` override pinned
+  `3.3.17` while advisory GHSA-2v37-7h3g-55p8 is fixed in `3.3.18`, so the
+  override — whose stated purpose is forcing transitive dependencies to their
+  fixed releases — was pinning a known-vulnerable version.
+- `investorInterests.investorOrganizationId` is now optional. Requiring an angel
+  to create an organization put a toll gate in front of the single action the
+  investor side exists for.
+- The participant onboarding signal `hasOrganization` was derived from campaign
+  count, conflating "has an organization" with "has run a campaign" and leaving
+  the step permanently unticked.
+- `EmailMessage.unsubscribeUrl` is optional, so transactional authentication
+  mail no longer carries a `List-Unsubscribe` header — semantically wrong for a
+  message the recipient requested seconds ago, and a deliverability
+  anti-pattern.
+- **Circular type inference in `convex/observability.ts`** silently degraded the
+  entire generated `api` type to `any`, taking every component's Convex types
+  with it. An action that calls mutations in its own module through `internal`
+  needs an explicit return type annotation.
+- `/system` still described workspace and catalogue records as "fictional
+  demonstration data until authenticated multi-tenant accounts are wired up",
+  which stopped being true.
+- README sections describing the removed `techadmin` and `/status` auth systems
+  pointed at scripts, routes and library files that no longer exist. Replaced
+  with the Convex Auth flow that is actually shipped.
+
+
 ### Changed — architecture
 
 - **Backend moved entirely into Convex.** All 18 Next.js API routes were deleted.

@@ -377,12 +377,11 @@ Copy `.env.example` to `.env.local` for local work. Use separate credentials and
 | `DISPATCHER_ID` | Server only | Lease ownership and diagnostics | Use a stable, non-secret deployment identifier |
 | `WORKER_GATEWAY_URL` | Server only | Scoped E2B-to-FastAPI research calls | HTTPS FastAPI origin; E2B network access is restricted to this host |
 | `EXA_TIMEOUT_SECONDS` | Server only | Provider request ceiling | Bounded to 5–120 seconds |
-| `ADMIN_BOOTSTRAP_SECRET` | Server only | Creating/resetting techadmin accounts | Only used by `scripts/create-admin.mjs`; safe to rotate/remove after the accounts you need exist |
-| `ADMIN_ACTION_SECRET` | Server only | All authenticated `/admin` reads and writes | Must match the Convex environment value; distinct from `SIGNUP_INGEST_SECRET` so its blast radius stays contained |
-| `FOUNDER_ACTION_SECRET` | Server only | Creating/resetting participant `/status` accounts and all authenticated `/status` reads | Must match the Convex environment value; only used by `scripts/create-founder-account.mjs` and the founder-auth session path; distinct from every other secret |
+| `ADMIN_BOOTSTRAP_SECRET` | Convex only | Promoting the very first admin account | Stops working permanently once any admin exists; rotate or remove it afterwards |
+| `REQUIRE_EMAIL_VERIFICATION` | Convex only | Requiring address confirmation at sign-up | Defaults to true wherever email is configured; ignored where it is not |
 | `EXA_API_KEY` | Server only | Live investor discovery | Do not expose the discovery route publicly without auth and budgets |
 | `OPENAI_API_KEY` | Convex only | Structured draft generation and UI translation | Without it, translation echoes the original text instead of fabricating a translation |
-| `OPENAI_MODEL` | Server only | Draft model selection | Defaults to `gpt-5-nano` |
+| `OPENAI_MODEL` | Convex only | Draft model selection | Defaults to `gpt-5.4-nano` |
 | `RESEND_API_KEY` | Server only | Email transport | Requires a verified sending domain |
 | `RESEND_FROM` | Server only | Email sender identity | Use a monitored, reply-capable address |
 | `RESEND_WEBHOOK_SECRET` | Server only | Resend webhook verification | Supplied by the webhook configuration |
@@ -401,34 +400,48 @@ curl -i http://localhost:8000/readyz
 
 The overall `mode` is `configured` only when the main provider variables are present. That status means “credentials appear configured,” not “the deployment has passed production readiness.”
 
-## Techadmin access
+## Accounts and operator access
 
-`/admin` is a separate, operator-only surface for platform metrics and moving `interestSignups` records through the pipeline (`new → reviewing → invited → active/declined`). It is not part of the founder/investor product surface, is excluded from the sitemap, and is disallowed in `robots.ts`.
+Accounts are [Convex Auth](https://labs.convex.dev/auth) with a password provider. There is no separate techadmin or `/status` login any more — both were replaced by one role-aware account system.
 
-1. Set `ADMIN_BOOTSTRAP_SECRET` and `ADMIN_ACTION_SECRET` on the Convex deployment (`bunx convex env set ADMIN_BOOTSTRAP_SECRET` / `... ADMIN_ACTION_SECRET`), then put the same values in `.env.local` (never commit them).
-2. Create an account: `node --env-file=.env.local scripts/create-admin.mjs you@example.com`. This prints a one-time password — store it in a password manager; it is never shown again and never written to disk.
-3. Sign in at `/admin/login`. Multi-factor sign-in is mandatory: the first sign-in redirects to `/admin/mfa/setup`, which shows a QR code for any TOTP authenticator app (Google Authenticator, 1Password, Authy). Every sign-in after that requires both the password and a current 6-digit code.
-4. Sessions are Convex-backed, revocable, HttpOnly/Secure/SameSite=Strict cookies (12-hour TTL). Password hashing uses scrypt; login and MFA verification are rate-limited per address and per address+email.
+### Creating an account
 
-There is no password-reset flow yet — re-run the bootstrap script with the same email to reset a forgotten password, and no MFA-recovery/backup-codes flow — losing the authenticator device currently requires an operator to reset the account by hand in the Convex dashboard. This is a deliberately narrow, single-role (`techadmin`) auth system, not the full multi-tenant `@convex-dev/auth` integration referenced in [Launch readiness](docs/LAUNCH_READINESS.md) for founder/investor accounts — that remains a separate, unbuilt piece of work.
+Anyone signs up at `/join` and signs in at `/signin`, choosing **participant** (seeking capital or support) or **investor**. `admin` is rejected from every sign-up payload and can only be reached by promotion.
 
-## Participant status access
+Passwords must be at least 12 characters; length is the only requirement, because forced character classes push people toward `Password1!` patterns that are weaker than a longer passphrase.
 
-`/status` is a separate, low-privilege sign-in for an existing `interestSignups` record. It shows only that record’s real pipeline status and submitted context; it does not activate investor discovery, outreach, catalogue publication, admin access, or the intended full multi-tenant workspace.
+### Password reset and email verification
 
-Create or reset the primary signup holder:
+Both are enabled automatically wherever an email provider is configured (`RESEND_API_KEY`/`POSTMARK_API_KEY`/`SENDGRID_API_KEY` plus `EMAIL_FROM`). A reset sends an eight-digit code valid for 15 minutes; verification sends one valid for 30 minutes.
 
-```bash
-node --env-file=.env.local scripts/create-founder-account.mjs founder@example.com
-```
+These are **transactional** and are deliberately *not* gated by `OUTBOUND_EMAIL_ENABLED`, which governs outreach: holding a password reset behind the outreach kill switch would lock every user out of their own account for as long as outreach stayed disabled. Suppression lists are likewise not consulted, so unsubscribing from outreach never costs someone their login.
 
-An operator may provision another verified organization member against the same existing signup without fabricating a second signup or consent record:
+Set `REQUIRE_EMAIL_VERIFICATION=false` to opt out of verification. With no email provider configured at all, both features switch off and **there is no account recovery path** — configure email before inviting real users.
 
-```bash
-node --env-file=.env.local scripts/create-founder-account.mjs member@example.com --signup-email=founder@example.com
-```
+### The first admin
 
-Both operations require the server-only `FOUNDER_ACTION_SECRET`. Passwords are salted-scrypt hashes at rest and generated passwords are printed once. A linked member can read only the explicitly linked signup record; the browser cannot create or change membership links.
+1. Set `ADMIN_BOOTSTRAP_SECRET` on the Convex deployment (`bunx convex env set ADMIN_BOOTSTRAP_SECRET`).
+2. Create an ordinary account at `/join` with the address that should become the operator.
+3. Call `users:promoteToAdmin` with that email and the bootstrap secret.
+
+The bootstrap path closes permanently the moment any admin exists, so the secret cannot be replayed to mint a second one. After that, only an existing verified admin can promote anyone.
+
+### Operator step-up
+
+`/admin` requires more than the admin role: the **current session** must have completed TOTP step-up within the last eight hours, so a stolen refresh token yields a signed-in session but not a privileged one. Enrolment is mandatory and happens at `/admin/mfa`; step-up is per session, so proving possession on a laptop does not privilege a session opened elsewhere.
+
+There is still no MFA backup/recovery-code flow — a lost authenticator requires an operator to clear the `userMfa` row by hand in the Convex dashboard.
+
+Operator surfaces:
+
+| Route | Purpose |
+|---|---|
+| `/admin` | Platform metrics |
+| `/admin/pipeline` | Move `interestSignups` through `new → reviewing → invited → active/declined` |
+| `/admin/listings` | Review, publish or send back founder-submitted catalogue listings |
+| `/admin/mfa` | Authenticator enrolment and ending step-up |
+
+All of them are excluded from the sitemap and disallowed in `robots.ts`. Every privileged action is written to `adminAuditLog` against the acting account.
 
 ## Provider adapters
 
@@ -516,19 +529,14 @@ convex/                 Schema, signup persistence, catalogue interest, campaign
 lib/domain.ts           Shared Zod validation and TypeScript contracts
 lib/compliance.ts       Deterministic outbound policy gate
 lib/matching.ts         Explainable deterministic matching
-lib/network-stats.ts    Real, non-PII Convex signup aggregates for the homepage
-lib/catalogue-stats.ts  Real, non-PII Convex catalogue-interest aggregates
 lib/outreach-math.ts    Founder outreach funnel formulas (/plan)
 lib/portfolio-math.ts   Investor pacing formulas (/pacing)
 lib/languages.ts        Supported UI translation languages
-lib/demo-data.ts        Clearly labeled fictional preview data
-lib/password.ts         scrypt password hashing for techadmin accounts
-lib/totp.ts             Self-contained RFC 6238 TOTP for techadmin MFA
-lib/admin-auth.ts       Techadmin session issuance/verification
-lib/admin-data.ts       Server-side reads for the techadmin dashboard
+lib/totp.ts             Self-contained RFC 6238 TOTP for operator MFA
+lib/onboarding.ts       Role-specific onboarding steps, with derived completion
 tests/                  Route, component, policy, math, crypto, and contrast tests
 docs/                   Architecture, operations, compliance, and roadmap
-scripts/                Repository maintenance, asset, and admin-bootstrap scripts
+scripts/                Repository maintenance, asset, and dev-seed scripts
 ```
 
 ## Adapting and self-hosting

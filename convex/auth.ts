@@ -1,5 +1,6 @@
 import { Password } from "@convex-dev/auth/providers/Password";
 import { convexAuth } from "@convex-dev/auth/server";
+import { EmailVerificationEmail, PasswordResetEmail, authEmailConfigured } from "./authEmail";
 import type { DataModel } from "./_generated/dataModel";
 import {
   accountRoles,
@@ -99,11 +100,35 @@ const profile = (params: Record<string, unknown>) => {
   };
 };
 
+/**
+ * Whether new accounts must confirm their address before they can sign in.
+ *
+ * Defaults to on wherever email can actually be sent, because the whole
+ * premise of this platform is that a signal from an investor or a founder is
+ * attributable to a real person who controls that address. It degrades rather
+ * than breaks: a deployment with no email provider configured (a fork building
+ * the marketing site, or local development) keeps the original
+ * sign-up-and-you-are-in behaviour instead of creating accounts nobody can
+ * ever activate. Set `REQUIRE_EMAIL_VERIFICATION=false` to opt out explicitly.
+ */
+function emailVerificationRequired(): boolean {
+  if (!authEmailConfigured()) return false;
+  return process.env.REQUIRE_EMAIL_VERIFICATION?.trim().toLowerCase() !== "false";
+}
+
+/**
+ * Password reset is enabled whenever email is configured. There is no switch
+ * to disable it: an account system with no recovery path is one forgotten
+ * password away from a permanently locked-out user, and "contact support" is
+ * not a recovery path when there is no support rota.
+ */
 export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
   providers: [
     Password<DataModel>({
       profile,
       validatePasswordRequirements,
+      ...(authEmailConfigured() ? { reset: PasswordResetEmail } : {}),
+      ...(emailVerificationRequired() ? { verify: EmailVerificationEmail } : {}),
     }),
   ],
 });

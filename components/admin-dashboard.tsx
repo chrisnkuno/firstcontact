@@ -17,6 +17,8 @@ export function AdminDashboard() {
       nav={
         <>
           <Link href="/admin/pipeline">Pipeline</Link>
+          <Link href="/admin/listings">Listings</Link>
+          <Link href="/admin/errors">Errors</Link>
           <Link href="/admin/mfa">Security</Link>
         </>
       }
@@ -70,6 +72,8 @@ function AdminBody() {
           hasMfa: true,
           hasInvestorType: false,
           expressedInterest: false,
+          hasListing: false,
+          listingPublished: false,
         }}
       />
 

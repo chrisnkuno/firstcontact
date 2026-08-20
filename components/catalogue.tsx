@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Logo } from "@/components/logo";
 import { LanguageSwitcher } from "@/components/language-switcher";
@@ -131,6 +131,12 @@ function CatalogueUnavailable() {
 
 function CatalogueBody() {
   const listings = useListings();
+  // A signed-in investor gets the attributed path: their interest becomes a
+  // row the founder can see, answer and act on. Everyone else keeps the
+  // anonymous email signal, which is a real record but reaches no inbox.
+  const viewer = useQuery(api.users.viewer);
+  const expressInterest = useMutation(api.investors.expressInterest);
+  const signedInAsInvestor = viewer?.role === "investor";
   const [region, setRegion] = useState("All regions");
   const [selected, setSelected] = useState<Listing | null>(null);
   const [interestPhase, setInterestPhase] = useState<InterestPhase>("idle");
@@ -151,16 +157,25 @@ function CatalogueBody() {
     setInterestError("");
   }
 
-  async function sendInterest(profileId: string) {
+  async function sendInterest(listingId: string) {
     setInterestPhase("sending");
     setInterestError("");
     try {
+      if (signedInAsInvestor) {
+        await expressInterest({
+          listingId: listingId as Parameters<typeof expressInterest>[0]["listingId"],
+          note: interestNote || undefined,
+        });
+        setInterestPhase("sent");
+        return;
+      }
+
       const endpoint = convexEndpoint(PUBLIC_ENDPOINTS.catalogueInterest);
       if (!endpoint) throw new Error("This build has no backend configured.");
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ profileId, email: interestEmail, note: interestNote }),
+        body: JSON.stringify({ profileId: listingId, email: interestEmail, note: interestNote }),
       });
       const payload = (await response.json()) as { ok: boolean; message?: string };
       if (!response.ok || !payload.ok) {
@@ -333,17 +348,30 @@ function CatalogueBody() {
                     void sendInterest(selected.id);
                   }}
                 >
-                  <label>
-                    <T>Your email</T>
-                    <input
-                      required
-                      type="email"
-                      value={interestEmail}
-                      onChange={(event) => setInterestEmail(event.target.value)}
-                      placeholder="you@fund.com"
-                      autoComplete="email"
-                    />
-                  </label>
+                  {signedInAsInvestor ? (
+                    <p className="interest-signed-in">
+                      <T>Sending as</T> <strong>{viewer?.name ?? viewer?.email}</strong>.{" "}
+                      <T>The founder sees this in their inbox and can respond to you directly.</T>
+                    </p>
+                  ) : (
+                    <label>
+                      <T>Your email</T>
+                      <input
+                        required
+                        type="email"
+                        value={interestEmail}
+                        onChange={(event) => setInterestEmail(event.target.value)}
+                        placeholder="you@fund.com"
+                        autoComplete="email"
+                      />
+                      <small>
+                        <Link href="/signin">
+                          <T>Sign in as an investor</T>
+                        </Link>{" "}
+                        <T>to send this to the founder directly instead.</T>
+                      </small>
+                    </label>
+                  )}
                   <label>
                     <T>Note</T> <small>OPTIONAL</small>
                     <textarea
@@ -381,10 +409,17 @@ function CatalogueBody() {
                       <T>Interest recorded.</T>
                     </b>
                     <p>
-                      <T>
-                        Saved as a real, timestamped signal against this profile. No private founder
-                        contact data is exposed to you — the organization decides whether to respond.
-                      </T>
+                      {signedInAsInvestor ? (
+                        <T>
+                          Delivered to the founder&apos;s inbox. They decide whether to accept, and
+                          nothing about you is shared beyond your name and note until they do.
+                        </T>
+                      ) : (
+                        <T>
+                          Saved as a real, timestamped signal against this profile. No private founder
+                          contact data is exposed to you — the organization decides whether to respond.
+                        </T>
+                      )}
                     </p>
                   </div>
                 </div>

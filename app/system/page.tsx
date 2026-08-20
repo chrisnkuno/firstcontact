@@ -16,15 +16,14 @@ export default function SystemPage() {
     >
       <h2>01 · Discover — search the public record</h2>
       <p>
-        Exa maps firms, people, mandates, portfolios, and current thesis evidence across four capital regions (US, UK, EU, APAC). Results
+        The configured search provider maps firms, people, mandates, portfolios, and current thesis evidence across four capital regions (US, UK, EU, APAC). Results
         are evidence candidates, not verified contacts — a production deployment normalizes domains, deduplicates firms, and flags
         ambiguous contact types for review before anything is treated as a reviewed record.
       </p>
 
       <h2>02 · Interpret — explain the fit</h2>
       <p>
-        Deterministic scoring in <code>lib/matching.ts</code> stays inspectable: every match keeps its reasons and risks. A model (GPT-5
-        nano) can supplement this with drafting and classification, but it cannot erase source-based reasoning or invent a score from
+        Deterministic scoring in <code>lib/matching.ts</code> stays inspectable: every match keeps its reasons and risks. A model can supplement this with drafting and classification, but it cannot erase source-based reasoning or invent a score from
         nothing.
       </p>
 
@@ -44,10 +43,11 @@ export default function SystemPage() {
 
       <h2>What is real versus preview right now</h2>
       <ul>
-        <li>Real and persisted: signup records, catalogue &ldquo;Express interest&rdquo; signals, and the aggregate honest counts shown across the site.</li>
-        <li>Live when configured: Exa discovery, GPT-5 nano drafting, and UI translation — each falls back to a clearly labeled sample or echo, never a fabricated result, when its provider key is absent.</li>
-        <li>Preview by design: workspace and catalogue records, matches, and pipeline events are fictional demonstration data until authenticated multi-tenant accounts are wired up.</li>
-        <li>Fail-closed until activated: outbound email, gated behind an explicit flag, operator token, and the full policy check.</li>
+        <li>Real and persisted: accounts and roles, signup records, organizations, startup profiles, published catalogue listings, investor interest signals, and the aggregate honest counts shown across the site.</li>
+        <li>Real and closed end to end: a founder writes a listing, an operator reviews it, an investor expresses interest, and the founder accepts or declines — contact details are released only on acceptance, never before.</li>
+        <li>Live when configured: search-backed discovery, model-backed drafting, UI translation, and transactional email — each falls back to a clearly labeled sample or an explicit &ldquo;unconfigured&rdquo; state, never a fabricated result, when its provider key is absent.</li>
+        <li>Empty rather than fictional: the catalogue lists only what founders have actually published. With none published it shows an empty state, not sample companies.</li>
+        <li>Fail-closed until activated: outbound outreach email, gated behind an explicit flag, an approved message, a reviewed jurisdiction, a suppression check, and sender identity.</li>
       </ul>
 
       <p className="document-intro" style={{ marginTop: 32 }}>

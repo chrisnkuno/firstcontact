@@ -1,4 +1,4 @@
-import { stages } from "@/lib/domain";
+import { stages } from "./domain";
 
 export type Stage = (typeof stages)[number];
 

@@ -39,7 +39,13 @@ export function ParticipantDashboard() {
     <DashboardShell
       allow={["participant"]}
       label="PARTICIPANT"
-      nav={<Link href="/plan">Planner</Link>}
+      nav={
+        <>
+          <Link href="/dashboard/organization">Your listing</Link>
+          <Link href="/dashboard/profile">Profile</Link>
+          <Link href="/plan">Planner</Link>
+        </>
+      }
     >
       {(viewer) => <ParticipantBody name={viewer.name ?? viewer.email ?? "there"} />}
     </DashboardShell>
@@ -63,8 +69,9 @@ function ParticipantBody({ name }: { name: string }) {
   const now = useStableNow();
   const record = useQuery(api.participants.myRecord);
   const activity = useQuery(api.participants.myActivity);
+  const workspace = useQuery(api.catalogue.myListing);
 
-  if (record === undefined || activity === undefined) {
+  if (record === undefined || activity === undefined || workspace === undefined) {
     return <p className="dashboard-loading">Loading your record…</p>;
   }
 
@@ -122,11 +129,16 @@ function ParticipantBody({ name }: { name: string }) {
         signals={{
           hasProfile: Boolean(record?.summary && record?.context),
           hasIntakeRecord: record !== null,
-          hasOrganization: activity.campaignCount > 0,
+          // Read from the workspace rather than inferred from campaign count,
+          // which was conflating "has an organization" with "has run a
+          // campaign" and left the step permanently unticked.
+          hasOrganization: workspace !== null,
           hasCampaign: activity.campaignCount > 0,
           hasMfa: false,
           hasInvestorType: false,
           expressedInterest: false,
+          hasListing: workspace?.listing != null,
+          listingPublished: workspace?.listing?.visibility === "listed",
         }}
       />
 

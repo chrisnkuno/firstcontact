@@ -10,6 +10,7 @@
 
 import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
+import type * as authEmail from "../authEmail.js";
 import type * as authz from "../authz.js";
 import type * as campaigns from "../campaigns.js";
 import type * as catalogue from "../catalogue.js";
@@ -18,6 +19,7 @@ import type * as http from "../http.js";
 import type * as investors from "../investors.js";
 import type * as maintenance from "../maintenance.js";
 import type * as migrations from "../migrations.js";
+import type * as observability from "../observability.js";
 import type * as onboarding from "../onboarding.js";
 import type * as organizations from "../organizations.js";
 import type * as outreach from "../outreach.js";
@@ -41,6 +43,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   auth: typeof auth;
+  authEmail: typeof authEmail;
   authz: typeof authz;
   campaigns: typeof campaigns;
   catalogue: typeof catalogue;
@@ -49,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   investors: typeof investors;
   maintenance: typeof maintenance;
   migrations: typeof migrations;
+  observability: typeof observability;
   onboarding: typeof onboarding;
   organizations: typeof organizations;
   outreach: typeof outreach;

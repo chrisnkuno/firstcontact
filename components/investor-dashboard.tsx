@@ -48,7 +48,13 @@ const FOCUS_COPY: Record<string, { heading: string; body: string }> = {
 
 export function InvestorDashboard() {
   return (
-    <DashboardShell allow={["investor"]} label="INVESTOR" nav={<Link href="/catalogue">Catalogue</Link>}>
+    <DashboardShell allow={["investor"]} label="INVESTOR" nav={
+        <>
+          <Link href="/catalogue">Catalogue</Link>
+          <Link href="/investor/profile">Profile</Link>
+          <Link href="/pacing">Pacing</Link>
+        </>
+      }>
       {(viewer) => (
         <InvestorBody
           name={viewer.name ?? viewer.email ?? "there"}
@@ -122,6 +128,8 @@ function InvestorBody({ name, investorType }: { name: string; investorType: Inve
           hasMfa: false,
           hasInvestorType: true,
           expressedInterest: interests.length > 0,
+          hasListing: false,
+          listingPublished: false,
         }}
       />
 

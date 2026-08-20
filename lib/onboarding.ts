@@ -20,6 +20,10 @@ export type OnboardingSignals = {
   hasMfa: boolean;
   hasInvestorType: boolean;
   expressedInterest: boolean;
+  /** A startup profile exists and a catalogue listing has been drafted from it. */
+  hasListing: boolean;
+  /** That listing has been through review and is visible to investors. */
+  listingPublished: boolean;
 };
 
 export type OnboardingStep = {
@@ -38,7 +42,7 @@ const PARTICIPANT_STEPS: OnboardingStep[] = [
   {
     id: "participant.profile",
     title: "Complete your profile",
-    body: "Your one-liner, traction and context are what an investor reads first — and the only facts a draft is allowed to use. Nothing outside them can appear in an outreach message.",
+    body: "Your name, organization and location identify you across the platform. Your email is your login.",
     action: { label: "Edit profile", href: "/dashboard/profile" },
     isDone: (signals) => signals.hasProfile,
   },
@@ -49,16 +53,24 @@ const PARTICIPANT_STEPS: OnboardingStep[] = [
     isDone: (signals) => signals.hasIntakeRecord,
   },
   {
+    id: "participant.organization",
+    title: "Create your organization",
+    body: "Listings, campaigns, sources and approvals all belong to an organization, so colleagues can review work you did not write.",
+    action: { label: "Open your workspace", href: "/dashboard/organization" },
+    isDone: (signals) => signals.hasOrganization,
+  },
+  {
+    id: "participant.listing",
+    title: "Write and publish your listing",
+    body: "The public half of your profile: the operating context, strengths and open questions you choose to show investors. You decide every word, and you can take it down at any time.",
+    action: { label: "Edit your listing", href: "/dashboard/organization" },
+    isDone: (signals) => signals.listingPublished,
+  },
+  {
     id: "participant.plan",
     title: "Set your raise plan",
     body: "Work backwards from your target: how many investor conversations does this raise actually need, at your stage's typical cheque size?",
     action: { label: "Open the planner", href: "/plan" },
-  },
-  {
-    id: "participant.organization",
-    title: "Create your organization",
-    body: "Campaigns, sources and approvals all belong to an organization, so colleagues can review drafts you did not write.",
-    isDone: (signals) => signals.hasOrganization,
   },
   {
     id: "participant.review",

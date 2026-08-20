@@ -16,3 +16,15 @@ __pycache__
 *.tsbuildinfo
 .DS_Store
 /out
+# Convex snapshots: full copies of production personal data.
+backups
+
+# Personal Claude Code overrides. The shared hook lives in .claude/settings.json.
+.claude/settings.local.json
+
+# Convex agent skills are vendored by `bunx convex ai-files install` and pinned
+# by skills-lock.json, so they are regenerated rather than committed — the same
+# reasoning as node_modules. The project's own skill (.claude/skills/firstcontact)
+# is authored here and IS committed.
+.claude/skills/convex*/
+.agents/skills/convex*/

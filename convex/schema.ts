@@ -122,7 +122,12 @@ export default defineSchema({
   campaigns: defineTable({ organizationId: v.id("organizations"), startupProfileId: v.id("startupProfiles"), name: v.string(), status: v.union(v.literal("draft"), v.literal("review"), v.literal("approved"), v.literal("running"), v.literal("paused"), v.literal("complete")), dailyLimit: v.number(), createdBy: v.string(), createdAt: v.number() }).index("by_organization", ["organizationId"]),
   matches: defineTable({ campaignId: v.id("campaigns"), investorId: v.id("investors"), score: v.number(), reasons: v.array(v.string()), risks: v.array(v.string()), model: v.optional(v.string()), promptVersion: v.optional(v.string()), createdAt: v.number() }).index("by_campaign_score", ["campaignId", "score"]),
   catalogueListings: defineTable({ organizationId: v.id("organizations"), startupProfileId: v.id("startupProfiles"), visibility: v.union(v.literal("private"), v.literal("review"), v.literal("listed")), publicContext: v.string(), publicStrengths: v.array(v.string()), publicConsiderations: v.array(v.string()), publicTraction: v.string(), approvedBy: v.optional(v.string()), approvedAt: v.optional(v.number()), updatedAt: v.number() }).index("by_visibility", ["visibility"]).index("by_organization", ["organizationId"]),
-  investorInterests: defineTable({ listingId: v.id("catalogueListings"), investorOrganizationId: v.id("organizations"), investorUserId: v.string(), note: v.optional(v.string()), status: v.union(v.literal("submitted"), v.literal("shared"), v.literal("accepted"), v.literal("declined")), createdAt: v.number() }).index("by_listing", ["listingId"]).index("by_investor", ["investorOrganizationId"]),
+  // `investorOrganizationId` is optional on purpose: an angel is an investor
+  // with no firm behind them, and requiring one would have made "create an
+  // organization" a toll gate in front of expressing interest. The interest
+  // belongs to the *person* either way, which is why `by_investor_user` is the
+  // index the investor's own screens read.
+  investorInterests: defineTable({ listingId: v.id("catalogueListings"), investorOrganizationId: v.optional(v.id("organizations")), investorUserId: v.string(), note: v.optional(v.string()), status: v.union(v.literal("submitted"), v.literal("shared"), v.literal("accepted"), v.literal("declined")), createdAt: v.number(), respondedAt: v.optional(v.number()) }).index("by_listing", ["listingId"]).index("by_investor", ["investorOrganizationId"]).index("by_investor_user", ["investorUserId"]).index("by_listing_user", ["listingId", "investorUserId"]),
   messages: defineTable({ campaignId: v.id("campaigns"), investorId: v.id("investors"), subject: v.string(), body: v.string(), status: v.union(v.literal("draft"), v.literal("approved"), v.literal("queued"), v.literal("sent"), v.literal("failed"), v.literal("suppressed")), approvedBy: v.optional(v.string()), approvedAt: v.optional(v.number()), providerMessageId: v.optional(v.string()), idempotencyKey: v.string(), createdAt: v.number() }).index("by_campaign", ["campaignId"]).index("by_idempotency", ["idempotencyKey"]),
   suppressions: defineTable({ emailHash: v.string(), reason: v.union(v.literal("unsubscribe"), v.literal("bounce"), v.literal("complaint"), v.literal("manual")), createdAt: v.number(), source: v.string() }).index("by_email_hash", ["emailHash"]),
   webhookEvents: defineTable({ provider: v.string(), eventId: v.string(), type: v.string(), payload: v.any(), receivedAt: v.number() }).index("by_provider_event", ["provider", "eventId"]),
@@ -236,6 +241,48 @@ export default defineSchema({
     createdAt: v.number(),
     migratedAt: v.number(),
   }).index("by_time", ["createdAt"]),
+
+  /**
+   * Redacted operational errors, aggregated by fingerprint.
+   *
+   * Aggregated rather than logged: a repeat of a known bug increments `count`
+   * instead of inserting a row, so this table stays a list of *problems* rather
+   * than growing without bound as a log. `message` is redacted by
+   * `lib/redaction.ts` before it is ever written — redacting on read would
+   * leave the raw value in the database, which is exactly what a subject access
+   * request or a breach would surface.
+   *
+   * No user id is stored. The coarse `actorRole` is enough to answer "is this
+   * breaking investors or founders" without making an error report into a
+   * record of what an identified person was doing.
+   */
+  errorEvents: defineTable({
+    fingerprint: v.string(),
+    source: v.union(v.literal("client"), v.literal("convex"), v.literal("worker")),
+    message: v.string(),
+    route: v.string(),
+    actorRole: v.optional(accountRole),
+    count: v.number(),
+    firstSeenAt: v.number(),
+    lastSeenAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+    resolvedBy: v.optional(v.id("users")),
+  })
+    .index("by_fingerprint", ["fingerprint"])
+    .index("by_last_seen", ["lastSeenAt"]),
+
+  /**
+   * Small singleton store for operational bookkeeping that is not per-user:
+   * when the last alert fired, when retention last ran, and what it deleted.
+   *
+   * Keyed by a string name so a new counter does not need a new table.
+   */
+  operationalState: defineTable({
+    key: v.string(),
+    numberValue: v.optional(v.number()),
+    textValue: v.optional(v.string()),
+    updatedAt: v.number(),
+  }).index("by_key", ["key"]),
 
   // Generic keyed limiter backing the public, unauthenticated surfaces
   // (signup submission, catalogue interest). Convex Auth ships its own

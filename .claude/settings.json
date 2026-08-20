@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=$(node -e 'let s=\"\";process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{try{const j=JSON.parse(s);console.log(j.tool_input?.file_path||j.tool_response?.filePath||\"\")}catch{console.log(\"\")}})'); case \"$f\" in */convex/_generated/*) exit 0 ;; */convex/*.ts) cd \"${CLAUDE_PROJECT_DIR:-.}\" && bunx convex codegen --typecheck disable >/dev/null 2>&1 || true ;; esac",
+            "timeout": 120,
+            "statusMessage": "Regenerating Convex types..."
+          }
+        ]
+      }
+    ]
+  }
+}

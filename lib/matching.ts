@@ -1,4 +1,4 @@
-import type { Investor, Match, StartupProfile } from "@/lib/domain";
+import type { Investor, Match, StartupProfile } from "./domain";
 
 const normalize = (value: string) => value.trim().toLowerCase();
 

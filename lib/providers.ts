@@ -543,7 +543,15 @@ export type EmailMessage = {
   to: string;
   subject: string;
   text: string;
-  unsubscribeUrl: string;
+  /**
+   * Only set for bulk/outreach mail. Transactional authentication mail (a
+   * password reset, an address-verification code) deliberately omits it:
+   * `List-Unsubscribe` on a message the recipient *asked for seconds ago* is
+   * both semantically wrong — there is nothing to unsubscribe from — and a
+   * deliverability anti-pattern, because providers read the header as a signal
+   * that the mail is bulk.
+   */
+  unsubscribeUrl?: string;
   /**
    * Passed to the provider's own deduplication where one exists, which is what
    * makes a retry after a network timeout safe: the recipient cannot receive
@@ -552,10 +560,13 @@ export type EmailMessage = {
   idempotencyKey: string;
 };
 
-const unsubscribeHeaders = (unsubscribeUrl: string) => ({
-  "List-Unsubscribe": `<${unsubscribeUrl}>`,
-  "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-});
+const unsubscribeHeaders = (unsubscribeUrl: string | undefined) =>
+  unsubscribeUrl
+    ? {
+        "List-Unsubscribe": `<${unsubscribeUrl}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      }
+    : {};
 
 async function resendSend(
   config: EmailProviderConfig,

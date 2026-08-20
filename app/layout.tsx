@@ -3,6 +3,7 @@ import "@fontsource-variable/space-grotesk";
 import "./globals.css";
 import { TranslationProvider } from "@/components/translation-provider";
 import { ConvexClientProvider } from "@/components/convex-provider";
+import { ErrorReporter } from "@/components/error-reporter";
 import { convexOrigins, siteOrigin } from "@/lib/site-config";
 
 /**
@@ -81,6 +82,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Skip to content
         </a>
         <ConvexClientProvider>
+          {/* Inside the provider so it can reach Convex, and rendering nothing,
+              so it cannot affect layout or paint. */}
+          <ErrorReporter />
           <TranslationProvider>{children}</TranslationProvider>
         </ConvexClientProvider>
       </body>
