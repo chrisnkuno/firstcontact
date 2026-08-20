@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery } from "convex/react";
+import type { FunctionReturnType } from "convex/server";
 import {
   AlertTriangle,
   Building2,
@@ -102,8 +103,12 @@ function Section({
 function WorkspaceBody() {
   const organizations = useQuery(api.organizations.listMine);
   const listing = useMyListing();
+  // What this founder already told us on the public form. Waited for rather
+  // than streamed in, because these forms are uncontrolled: `defaultValue`
+  // only applies at mount, so a draft that arrives late would be ignored.
+  const draft = useQuery(api.users.mySignupDraft);
 
-  if (organizations === undefined || listing === undefined) {
+  if (organizations === undefined || listing === undefined || draft === undefined) {
     return <p className="dashboard-loading">Loading your workspace…</p>;
   }
 
@@ -120,11 +125,11 @@ function WorkspaceBody() {
       </header>
 
       {!organization ? (
-        <CreateOrganization />
+        <CreateOrganization draft={draft} />
       ) : !listing ? (
         <>
           <OrganizationSummary name={organization.name} slug={organization.slug} />
-          <CreateProfile organizationId={organization._id} />
+          <CreateProfile organizationId={organization._id} draft={draft} />
         </>
       ) : (
         <>
@@ -138,6 +143,21 @@ function WorkspaceBody() {
 }
 
 /* ------------------------------ step one ------------------------------- */
+
+/** What the public interest form already captured, if this founder used it. */
+type SignupDraft = FunctionReturnType<typeof api.users.mySignupDraft>;
+
+/**
+ * Prefills a field only when the earlier text still fits the field it is going
+ * into. Truncating would put words in a founder's mouth that they never wrote
+ * and cannot see they are missing — an empty field they fill deliberately is
+ * better than a sentence silently cut in half.
+ */
+function withinLimit(value: string | undefined, max: number) {
+  const text = (value ?? "").trim();
+  return text.length > 0 && text.length <= max ? text : undefined;
+}
+
 
 function OrganizationSummary({ name, slug }: { name: string; slug: string }) {
   return (
@@ -158,9 +178,9 @@ function OrganizationSummary({ name, slug }: { name: string; slug: string }) {
   );
 }
 
-function CreateOrganization() {
+function CreateOrganization({ draft }: { draft: SignupDraft }) {
   const create = useMutation(api.organizations.create);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(draft?.organizationName ?? "");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const slug = slugify(name);
@@ -223,7 +243,7 @@ function CreateOrganization() {
 
 /* ------------------------------ step two ------------------------------- */
 
-function CreateProfile({ organizationId }: { organizationId: string }) {
+function CreateProfile({ organizationId, draft }: { organizationId: string; draft: SignupDraft }) {
   const create = useMutation(api.profiles.create);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -269,12 +289,32 @@ function CreateProfile({ organizationId }: { organizationId: string }) {
     <Section
       step="STEP 2 / PROFILE"
       title="Describe what you are building"
-      intro="These are the only facts the platform will ever use about you. A draft or a listing can never state something that is not here."
+      intro={
+        draft ? (
+          <>
+            Started from what you wrote on the interest form — check every field and change
+            anything that has moved on. These are the only facts the platform will ever use about
+            you; a draft or a listing can never state something that is not here.
+          </>
+        ) : (
+          <>
+            These are the only facts the platform will ever use about you. A draft or a listing can
+            never state something that is not here.
+          </>
+        )
+      }
     >
       <form className="workspace-form" onSubmit={onSubmit}>
         <label>
           Company or organization name
-          <input name="name" type="text" required minLength={2} maxLength={100} />
+          <input
+            name="name"
+            type="text"
+            required
+            minLength={2}
+            maxLength={100}
+            defaultValue={withinLimit(draft?.organizationName, 100)}
+          />
         </label>
 
         <label>
@@ -290,13 +330,26 @@ function CreateProfile({ organizationId }: { organizationId: string }) {
 
         <label>
           Website
-          <input name="website" type="url" required placeholder="https://example.com" />
+          <input
+            name="website"
+            type="url"
+            required
+            placeholder="https://example.com"
+            defaultValue={draft?.website || undefined}
+          />
         </label>
 
         <div className="workspace-row">
           <label>
             Where are you based?
-            <input name="location" type="text" required minLength={2} maxLength={120} />
+            <input
+              name="location"
+              type="text"
+              required
+              minLength={2}
+              maxLength={120}
+              defaultValue={withinLimit(draft?.location, 120)}
+            />
           </label>
           <label>
             Region
@@ -313,7 +366,7 @@ function CreateProfile({ organizationId }: { organizationId: string }) {
         <div className="workspace-row">
           <label>
             Stage
-            <select name="stage" defaultValue="seed" required>
+            <select name="stage" defaultValue={draft?.stage || "seed"} required>
               {stages.map((stage) => (
                 <option key={stage} value={stage}>
                   {stage}
@@ -335,7 +388,14 @@ function CreateProfile({ organizationId }: { organizationId: string }) {
 
         <label>
           One line
-          <input name="oneLiner" type="text" required minLength={20} maxLength={240} />
+          <input
+            name="oneLiner"
+            type="text"
+            required
+            minLength={20}
+            maxLength={240}
+            defaultValue={withinLimit(draft?.oneLiner, 240)}
+          />
           <small>At least 20 characters. What you do, in a sentence an investor can repeat.</small>
         </label>
 
@@ -352,7 +412,14 @@ function CreateProfile({ organizationId }: { organizationId: string }) {
 
         <label>
           Founder context
-          <textarea name="founderContext" required minLength={20} maxLength={1600} rows={4} />
+          <textarea
+            name="founderContext"
+            required
+            minLength={20}
+            maxLength={1600}
+            rows={4}
+            defaultValue={withinLimit(draft?.founderContext, 1600)}
+          />
           <small>Why you, and what an investor unfamiliar with your market should understand.</small>
         </label>
 
@@ -360,7 +427,15 @@ function CreateProfile({ organizationId }: { organizationId: string }) {
           <legend>Where is the capital you are looking for?</legend>
           {capitalRegions.map((region) => (
             <label key={region}>
-              <input type="checkbox" name={`target-${region}`} defaultChecked={region === "US"} />
+              <input
+                type="checkbox"
+                name={`target-${region}`}
+                defaultChecked={
+                  draft?.targetRegions.length
+                    ? draft.targetRegions.includes(region)
+                    : region === "US"
+                }
+              />
               {region}
             </label>
           ))}

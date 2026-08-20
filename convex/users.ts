@@ -365,3 +365,45 @@ export const endMfaStepUp = mutation({
     return { ended: true };
   },
 });
+
+/**
+ * The signed-in user's own interest-form submission, for prefilling the
+ * workspace.
+ *
+ * Scoped to the caller's verified address exactly like `claimSignupRecord`, so
+ * this can only ever return a record the caller proved they control. It exists
+ * because a founder who already wrote a two-thousand character pitch into the
+ * public form should not have to type it a second time to be listed — that
+ * friction, not a missing feature, is why the catalogue stays empty while the
+ * pipeline fills up.
+ *
+ * Returned as a *draft to review*, never as an accepted answer: prefilling a
+ * form is not consent to publish. The listing still starts private and still
+ * needs the founder to submit it.
+ */
+export const mySignupDraft = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+    const user = await ctx.db.get(userId);
+    if (!user?.email) return null;
+
+    const signup = await ctx.db
+      .query("interestSignups")
+      .withIndex("by_email", (q) => q.eq("email", user.email!))
+      .unique();
+    if (!signup) return null;
+
+    return {
+      organizationName: signup.organizationName ?? "",
+      website: signup.website ?? "",
+      location: signup.location ?? "",
+      stage: signup.stage ?? "",
+      targetRegions: signup.targetRegions ?? [],
+      // The two long-form fields, which are the ones actually worth carrying.
+      oneLiner: signup.summary ?? "",
+      founderContext: signup.context ?? "",
+    };
+  },
+});

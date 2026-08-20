@@ -152,7 +152,10 @@ export const listAuditLog = query({
 
     return Promise.all(
       entries.map(async (entry) => {
-        const actor = await ctx.db.get(entry.actorUserId);
+        // Guarded rather than asserted: pre-Convex-Auth rows have no
+        // `actorUserId` at all, and an audit view is the last surface that
+        // should throw when it meets a row it does not recognise.
+        const actor = entry.actorUserId ? await ctx.db.get(entry.actorUserId) : null;
         return {
           id: entry._id,
           action: entry.action,
