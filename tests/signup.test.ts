@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { interestSignupSchema, normalizeSignupWebsite } from "@/lib/domain";
+import {
+  interestSignupSchema,
+  isParticipantAccountSetupEligible,
+  normalizeSignupWebsite,
+} from "@/lib/domain";
 
 const common = {
   name: "Amina N.",
@@ -95,5 +99,28 @@ describe("interest signup", () => {
     });
 
     expect(result.success).toBe(true);
+  });
+});
+
+describe("participant account setup eligibility", () => {
+  it("includes startups and institutions", () => {
+    expect(
+      isParticipantAccountSetupEligible({ accountType: "startup", goals: ["raise-capital"] }),
+    ).toBe(true);
+    expect(
+      isParticipantAccountSetupEligible({ accountType: "institution", goals: ["partner"] }),
+    ).toBe(true);
+  });
+
+  it("includes individuals seeking capital support but not investor-only records", () => {
+    expect(
+      isParticipantAccountSetupEligible({ accountType: "individual", goals: ["join-catalogue"] }),
+    ).toBe(true);
+    expect(
+      isParticipantAccountSetupEligible({
+        accountType: "individual",
+        goals: ["invest", "research"],
+      }),
+    ).toBe(false);
   });
 });

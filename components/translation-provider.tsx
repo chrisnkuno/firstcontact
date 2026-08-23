@@ -1,7 +1,12 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { defaultLanguage, type LanguageCode } from "@/lib/languages";
+import {
+  defaultLanguage,
+  isLanguageCode,
+  languageDirection,
+  type LanguageCode,
+} from "@/lib/languages";
 import { PUBLIC_ENDPOINTS, convexEndpoint } from "@/lib/convex-endpoints";
 
 type TranslationContextValue = {
@@ -25,7 +30,9 @@ function ensureHydrated() {
   if (hydrated || typeof window === "undefined") return;
   hydrated = true;
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored) currentLanguage = stored as LanguageCode;
+  if (stored && isLanguageCode(stored)) currentLanguage = stored;
+  document.documentElement.lang = currentLanguage;
+  document.documentElement.dir = languageDirection(currentLanguage);
 }
 
 function subscribe(listener: () => void) {
@@ -44,7 +51,11 @@ function getServerSnapshot(): LanguageCode {
 
 function setGlobalLanguage(next: LanguageCode) {
   currentLanguage = next;
-  if (typeof window !== "undefined") window.localStorage.setItem(STORAGE_KEY, next);
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(STORAGE_KEY, next);
+    document.documentElement.lang = next;
+    document.documentElement.dir = languageDirection(next);
+  }
   listeners.forEach((listener) => listener());
 }
 

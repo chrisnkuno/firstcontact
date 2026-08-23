@@ -86,6 +86,7 @@ function InvestorScorecardLive() {
         </a>
         . Nothing here is estimated.
       </p>
+      {!stats.complete && <p className="calc-note">Live display capped at the 10,000 newest signals; operator reporting remains authoritative.</p>}
     </div>
   );
 }

@@ -29,11 +29,12 @@ Do not open a public issue containing exploit details or personal data. Use this
 | Spreadsheet/formula injection in exports | Escape `=`, `+`, `-`, `@` prefixes in CSV cells |
 | Resource/cost exhaustion | Per-tenant quotas, bounded results, daily send caps, workflow concurrency limits |
 
-## Content Security Policy, and what a static host cannot do
+## Content Security Policy and deployed response headers
 
-The application is a static export served by GitHub Pages, which **cannot set
-response headers**. This is a genuine reduction in defence-in-depth compared
-with the previous Node deployment, and is recorded here rather than glossed.
+The application is a static export. Next.js export mode cannot generate dynamic
+headers, but the production Vercel deployment applies the checked-in
+`vercel.json` header policy to every path. Independent static hosts that ignore
+that file must configure equivalent headers at their own CDN or origin.
 
 What survives, as a `<meta http-equiv="Content-Security-Policy">` tag in
 `app/layout.tsx`:
@@ -48,16 +49,16 @@ What survives, as a `<meta http-equiv="Content-Security-Policy">` tag in
   it: no `dangerouslySetInnerHTML`, no `eval`, no `new Function`, no third-party
   script origins, self-hosted fonts.
 
-What is lost, with no meta equivalent:
+The production Vercel policy restores these header-only controls:
 
 | Header | Status |
 |---|---|
-| `Strict-Transport-Security` | Gone. `*.github.io` is HSTS-preloaded by the browser, so the exposed case is a custom domain, which needs HSTS from a fronting CDN. |
-| `X-Frame-Options` | Gone. `frame-ancestors` in a meta tag is ignored by browsers, so clickjacking protection now depends on the host. |
-| `X-Content-Type-Options` | Gone. |
-| `Permissions-Policy` | Gone. |
-| `Cross-Origin-Opener-Policy` / `Cross-Origin-Resource-Policy` | Gone. |
-| `Referrer-Policy` | Partially recovered via `<meta name="referrer">`. |
+| `Strict-Transport-Security` | Set for two years with subdomains. |
+| `X-Frame-Options` | `DENY`, alongside header-level CSP `frame-ancestors 'none'`. |
+| `X-Content-Type-Options` | `nosniff`. |
+| `Permissions-Policy` | Camera, microphone, geolocation, payment, and USB disabled. |
+| `Cross-Origin-Opener-Policy` / `Cross-Origin-Resource-Policy` | `same-origin`. |
+| `Referrer-Policy` | `strict-origin-when-cross-origin`. |
 
 ## Session storage
 
@@ -91,11 +92,11 @@ What the rest of the policy still buys with inline script allowed: an injected
 `connect-src 'self'` blocks exfiltration to an attacker-controlled host, which
 is what most payloads need in order to be useful.
 
-The residual risk is HTML injection, and the codebase currently offers no
-vector for it: no `dangerouslySetInnerHTML`, no `eval`, no `new Function`, no
-third-party script origins, self-hosted fonts, and every browser fetch is
-same-origin. **Introducing any of those means revisiting this decision** and
-accepting dynamic rendering in exchange for a nonce.
+The residual risk is HTML injection. The sole `dangerouslySetInnerHTML` use is
+a fixed, source-controlled theme bootstrap string with no user, URL, provider,
+or environment interpolation; there is no `eval`, `new Function`, or
+third-party script origin. **Introducing a dynamic HTML sink means revisiting
+this decision** and accepting dynamic rendering in exchange for a nonce.
 
 ## Supply chain
 

@@ -5,6 +5,7 @@ import { TranslationProvider } from "@/components/translation-provider";
 import { ConvexClientProvider } from "@/components/convex-provider";
 import { ErrorReporter } from "@/components/error-reporter";
 import { convexOrigins, siteOrigin } from "@/lib/site-config";
+import { ThemeToggle, themeBootScript } from "@/components/theme-toggle";
 
 /**
  * Content-Security-Policy, as a meta tag.
@@ -65,12 +66,19 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = { themeColor: "#f2f0e9", colorScheme: "light" };
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f2f0e9" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d1511" },
+  ],
+  colorScheme: "light dark",
+};
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript }} />
         <meta httpEquiv="Content-Security-Policy" content={contentSecurityPolicy} />
         {/* Partially recovers the Referrer-Policy header, which a static host
             cannot send. No meta equivalent exists for X-Content-Type-Options,
@@ -81,6 +89,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <a className="skip-link" href="#main-content">
           Skip to content
         </a>
+        <ThemeToggle />
         <ConvexClientProvider>
           {/* Inside the provider so it can reach Convex, and rendering nothing,
               so it cannot affect layout or paint. */}

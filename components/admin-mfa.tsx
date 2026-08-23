@@ -56,7 +56,11 @@ function MfaEnrolment() {
     setPending(true);
     const code = String(new FormData(event.currentTarget).get("code") ?? "");
     try {
-      await confirmMfa({ code });
+      const result = await confirmMfa({ code });
+      if (!result.enabled) {
+        setError(result.error === "rate_limited" ? "Too many attempts. Try again later." : "That code did not match.");
+        setPending(false);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "That code did not match");
       setPending(false);
@@ -129,7 +133,11 @@ function MfaStepUp() {
     setPending(true);
     const code = String(new FormData(event.currentTarget).get("code") ?? "");
     try {
-      await verifyMfa({ code });
+      const result = await verifyMfa({ code });
+      if (!result.verified) {
+        setError(result.error === "rate_limited" ? "Too many attempts. Try again later." : "That code did not match.");
+        setPending(false);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "That code did not match");
       setPending(false);

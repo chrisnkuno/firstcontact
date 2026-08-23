@@ -52,6 +52,7 @@ export function InvestorDashboard() {
         <>
           <Link href="/catalogue">Catalogue</Link>
           <Link href="/investor/profile">Profile</Link>
+          <Link href="/account/privacy">Privacy</Link>
           <Link href="/pacing">Pacing</Link>
         </>
       }>

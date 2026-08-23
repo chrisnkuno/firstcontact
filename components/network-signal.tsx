@@ -142,6 +142,7 @@ function NetworkSignalLive() {
           </span>
         </article>
       </div>
+      {!stats.complete && <p className="calc-note">Live display capped at the 10,000 newest records; operator reporting remains authoritative.</p>}
       <div className="signal-regions">
         <span>
           <T>CAPITAL REGIONS OF INTEREST</T>

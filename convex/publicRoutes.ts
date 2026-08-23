@@ -47,7 +47,22 @@ function corsHeaders(origin: string | null): Record<string, string> {
 }
 
 function json(body: unknown, status: number, origin: string | null) {
-  return new Response(JSON.stringify(body), { status, headers: corsHeaders(origin) });
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders(origin), "cache-control": "no-store", "x-content-type-options": "nosniff" },
+  });
+}
+
+const MAX_PUBLIC_BODY_BYTES = 128 * 1024;
+
+async function readJsonBody(request: Request): Promise<{ ok: true; value: unknown } | { ok: false }> {
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declared) && declared > MAX_PUBLIC_BODY_BYTES) return { ok: false };
+  try {
+    const body = await request.text();
+    if (new TextEncoder().encode(body).byteLength > MAX_PUBLIC_BODY_BYTES) return { ok: false };
+    return { ok: true, value: JSON.parse(body) as unknown };
+  } catch { return { ok: false }; }
 }
 
 export const preflight = httpAction(async (_ctx, request) => {
@@ -60,12 +75,9 @@ export const submitSignup = httpAction(async (ctx, request) => {
     return json({ ok: false, message: "This origin may not submit signups" }, 403, origin);
   }
 
-  let payload: unknown;
-  try {
-    payload = await request.json();
-  } catch {
-    return json({ ok: false, message: "Malformed request body" }, 400, origin);
-  }
+  const body = await readJsonBody(request);
+  if (!body.ok) return json({ ok: false, message: "Malformed or oversized request body" }, 400, origin);
+  const payload = body.value;
 
   const parsed = interestSignupSchema.safeParse(payload);
   if (!parsed.success) {
@@ -119,7 +131,13 @@ export const submitSignup = httpAction(async (ctx, request) => {
   // submission in an email without us handing out a raw database id.
   const reference = result.id.slice(-8).toUpperCase();
   return json(
-    { ok: true, reference, created: result.created, status: result.status },
+    {
+      ok: true,
+      reference,
+      created: result.created,
+      status: result.status,
+      ...(result.inviteCode ? { inviteCode: result.inviteCode } : {}),
+    },
     result.created ? 201 : 200,
     origin,
   );
@@ -139,12 +157,9 @@ export const translate = httpAction(async (ctx, request) => {
     return json({ ok: false, message: "This origin may not request translations" }, 403, origin);
   }
 
-  let payload: unknown;
-  try {
-    payload = await request.json();
-  } catch {
-    return json({ ok: false, message: "Malformed request body" }, 400, origin);
-  }
+  const body = await readJsonBody(request);
+  if (!body.ok) return json({ ok: false, message: "Malformed or oversized request body" }, 400, origin);
+  const payload = body.value;
 
   const parsed = translationRequestSchema.safeParse(payload);
   if (!parsed.success) return json({ ok: false, message: "Invalid translation request" }, 400, origin);
@@ -160,7 +175,10 @@ export const translate = httpAction(async (ctx, request) => {
   }
 
   const limiterSecret = process.env.RATE_LIMIT_SECRET;
-  if (limiterSecret) {
+  if (!limiterSecret) {
+    return json({ mode: "unconfigured", translated: false, translations: texts }, 503, origin);
+  }
+  {
     const keys = await signupRateLimitKeys({
       address: clientAddressFromHeaders(request.headers),
       email: `translate:${target}`,
@@ -202,12 +220,9 @@ export const submitCatalogueInterest = httpAction(async (ctx, request) => {
     return json({ ok: false, message: "This origin may not submit interest" }, 403, origin);
   }
 
-  let payload: unknown;
-  try {
-    payload = await request.json();
-  } catch {
-    return json({ ok: false, message: "Malformed request body" }, 400, origin);
-  }
+  const body = await readJsonBody(request);
+  if (!body.ok) return json({ ok: false, message: "Malformed or oversized request body" }, 400, origin);
+  const payload = body.value;
 
   const parsed = catalogueInterestSchema.safeParse(payload);
   if (!parsed.success) {

@@ -113,6 +113,7 @@ export function ApplyForm() {
   const [result, setResult] = useState<{
     reference: string;
     created: boolean;
+    inviteCode?: string;
   } | null>(null);
 
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -236,6 +237,7 @@ export function ApplyForm() {
         message?: string;
         reference?: string;
         created?: boolean;
+        inviteCode?: string;
         fields?: Record<string, string[] | undefined>;
       };
       try {
@@ -273,6 +275,7 @@ export function ApplyForm() {
       setResult({
         reference: payload.reference,
         created: payload.created ?? true,
+        inviteCode: payload.inviteCode,
       });
     } catch (submissionError) {
       setError(
@@ -304,9 +307,19 @@ export function ApplyForm() {
               : "We saved your profile and capital-access context. You remain in control of what becomes public and no investor outreach will be sent without review."}
           </T>
         </p>
+        {result.inviteCode ? (
+          <div className="signup-invite-code">
+            <span>YOUR ACCOUNT SETUP CODE</span>
+            <code>{result.inviteCode}</code>
+            <p>
+              Save this code now. It is shown only on this first submission and lets you choose
+              your participant card, set your own password, and connect the account safely.
+            </p>
+          </div>
+        ) : null}
         <div className="success-next">
-          <Link className="button button-dark" href={individual ? "/catalogue" : "/workspace"}>
-            <T>{individual ? "Explore the catalogue" : "Explore the workspace"}</T>
+          <Link className="button button-dark" href={result.inviteCode ? "/signin" : individual ? "/catalogue" : "/workspace"}>
+            <T>{result.inviteCode ? "Set your password" : individual ? "Explore the catalogue" : "Explore the workspace"}</T>
             <ArrowRight size={17} />
           </Link>
           <Link className="text-link" href="/">

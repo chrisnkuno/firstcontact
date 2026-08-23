@@ -13,6 +13,7 @@ import {
 } from "./authz";
 import { buildOtpauthUri, generateTotpSecret, verifyTotp } from "../lib/totp";
 import { authEmailConfigured } from "./authEmail";
+import { consumeRateLimit } from "./rateLimit";
 
 const investorType = v.union(
   v.literal("angel"),
@@ -117,6 +118,7 @@ export const viewer = query({
  */
 export const claimSignupRecord = mutation({
   args: {},
+  returns: v.object({ claimed: v.boolean() }),
   handler: async (ctx) => {
     const user = await requireUser(ctx);
     await ctx.db.patch(user._id, { lastSeenAt: Date.now() });
@@ -129,6 +131,20 @@ export const claimSignupRecord = mutation({
     if (!signup) return { claimed: false as const };
     if (signup.userId === user._id) return { claimed: true as const };
     if (signup.userId) return { claimed: false as const };
+
+    // Auto-approved records carry a bearer invite. Merely creating an account
+    // with the same public email string must not bypass that claim proof,
+    // especially on deployments where outbound verification email is not yet
+    // configured. Legacy records with no invite keep their previous
+    // claim-by-email behaviour; current invited records require redemption.
+    if (signup.status === "invited") {
+      const invite = await ctx.db
+        .query("accountInvites")
+        .withIndex("by_signup", (q) => q.eq("signupId", signup._id))
+        .order("desc")
+        .first();
+      if (invite && invite.redeemedBy !== user._id) return { claimed: false as const };
+    }
 
     await ctx.db.patch(signup._id, { userId: user._id, updatedAt: Date.now() });
     return { claimed: true as const };
@@ -278,6 +294,10 @@ export const confirmMfa = mutation({
   args: { code: v.string() },
   handler: async (ctx, args) => {
     const user = await requireAdminForEnrolment(ctx);
+    const sessionId = await getAuthSessionId(ctx);
+    if (!sessionId) throw new Error(AUTH_ERRORS.unauthenticated);
+    const attempt = await consumeRateLimit(ctx, `mfa:${sessionId}`, 10, 10 * 60 * 1000);
+    if (attempt.limited) return { enabled: false as const, error: "rate_limited" as const };
 
     const record = await ctx.db
       .query("userMfa")
@@ -285,9 +305,7 @@ export const confirmMfa = mutation({
       .unique();
     if (!record) throw new Error(AUTH_ERRORS.mfaNotEnrolled);
 
-    if (!(await verifyTotp(record.secret, args.code))) {
-      throw new Error("That code did not match. Check your authenticator and try again.");
-    }
+    if (!(await verifyTotp(record.secret, args.code))) return { enabled: false as const, error: "invalid" as const };
 
     const now = Date.now();
     await ctx.db.patch(record._id, { enabled: true, confirmedAt: now, updatedAt: now });
@@ -310,6 +328,10 @@ export const verifyMfa = mutation({
   args: { code: v.string() },
   handler: async (ctx, args) => {
     const user = await requireAdminForEnrolment(ctx);
+    const sessionId = await getAuthSessionId(ctx);
+    if (!sessionId) throw new Error(AUTH_ERRORS.unauthenticated);
+    const attempt = await consumeRateLimit(ctx, `mfa:${sessionId}`, 10, 10 * 60 * 1000);
+    if (attempt.limited) return { verified: false as const, error: "rate_limited" as const };
 
     const record = await ctx.db
       .query("userMfa")
@@ -317,9 +339,7 @@ export const verifyMfa = mutation({
       .unique();
     if (!record || !record.enabled) throw new Error(AUTH_ERRORS.mfaNotEnrolled);
 
-    if (!(await verifyTotp(record.secret, args.code))) {
-      throw new Error("That code did not match. Check your authenticator and try again.");
-    }
+    if (!(await verifyTotp(record.secret, args.code))) return { verified: false as const, error: "invalid" as const };
 
     await writeSessionVerification(ctx, user._id, Date.now());
     return { verified: true };

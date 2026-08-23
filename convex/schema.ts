@@ -85,6 +85,44 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
 
+  // A durable, user-visible record of privacy rights requests. Requests are
+  // reviewed rather than auto-deleting data because identity, fraud, legal
+  // holds, shared organization records, and audit obligations must be checked
+  // before an irreversible erase operation.
+  privacyRequests: defineTable({
+    userId: v.id("users"),
+    kind: v.union(
+      v.literal("access"),
+      v.literal("correction"),
+      v.literal("deletion"),
+      v.literal("restriction"),
+      v.literal("objection"),
+      v.literal("appeal"),
+    ),
+    jurisdiction: v.union(
+      v.literal("US"),
+      v.literal("UK"),
+      v.literal("EU"),
+      v.literal("APAC"),
+      v.literal("OTHER"),
+    ),
+    details: v.optional(v.string()),
+    status: v.union(
+      v.literal("submitted"),
+      v.literal("in_review"),
+      v.literal("completed"),
+      v.literal("denied"),
+      v.literal("cancelled"),
+    ),
+    submittedAt: v.number(),
+    updatedAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+    response: v.optional(v.string()),
+  })
+    .index("by_user_and_kind", ["userId", "kind"])
+    .index("by_user_and_submitted_at", ["userId", "submittedAt"])
+    .index("by_status_and_submitted_at", ["status", "submittedAt"]),
+
   interestSignups: defineTable({
     accountType: v.union(v.literal("startup"), v.literal("institution"), v.literal("individual")),
     name: v.string(),
@@ -114,6 +152,44 @@ export default defineSchema({
     .index("by_email", ["email"])
     .index("by_status_time", ["status", "createdAt"])
     .index("by_user", ["userId"]),
+  /**
+   * Participant invite codes, one per intake record.
+   *
+   * The code is stored in plain text, which is a deliberate and narrow
+   * exception to the hashing rule that governs sessions and suppressions. An
+   * operator has to be able to *read* a code back in order to pass it on — a
+   * hash would make the whole feature impossible. Three things keep the
+   * exposure small:
+   *
+   *   1. A code is a bearer account-setup credential and is therefore never
+   *      returned by the participant-list query. Setup also binds it to the
+   *      selected opaque signup id, and redemption binds the resulting account
+   *      back to the invite email.
+   *   2. Direct reads are admin-only and therefore behind TOTP step-up, because every
+   *      admin query goes through `requireAdmin`.
+   *   3. Codes expire (`expiresAt`) and are single-use (`redeemedAt`).
+   *
+   * `revokedAt` is set by an operator withdrawing an auto-issued invite; it is
+   * kept rather than deleted so the pipeline can show that a code was issued
+   * and then withdrawn, which a deletion would erase.
+   */
+  accountInvites: defineTable({
+    signupId: v.id("interestSignups"),
+    // Denormalised from the signup so redemption can compare against the
+    // caller's verified address without a second read, and so the binding
+    // survives an edit to the intake record.
+    email: v.string(),
+    code: v.string(),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+    redeemedAt: v.optional(v.number()),
+    redeemedBy: v.optional(v.id("users")),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_code", ["code"])
+    .index("by_signup", ["signupId"])
+    .index("by_email", ["email"]),
+
   organizations: defineTable({ name: v.string(), slug: v.string(), createdBy: v.string(), createdAt: v.number() }).index("by_slug", ["slug"]),
   memberships: defineTable({ organizationId: v.id("organizations"), userId: v.id("users"), role: v.union(v.literal("owner"), v.literal("reviewer"), v.literal("member")) }).index("by_org_user", ["organizationId", "userId"]).index("by_user", ["userId"]),
   startupProfiles: defineTable({ organizationId: v.id("organizations"), organizationType: v.union(v.literal("startup"), v.literal("institution")), name: v.string(), website: v.string(), location: v.string(), region: v.string(), stage: v.string(), sectors: v.array(v.string()), raiseAmountUsd: v.number(), oneLiner: v.string(), traction: v.string(), impact: v.string(), founderContext: v.string(), targetRegions: v.array(v.string()), status: v.union(v.literal("draft"), v.literal("active"), v.literal("archived")), consentRecordedAt: v.number(), updatedAt: v.number() }).index("by_organization", ["organizationId"]),

@@ -6,6 +6,7 @@ import { AdminMfaGate, AdminSecurityPanel } from "@/components/admin-mfa";
 import { AdminPipelineTable } from "@/components/admin-pipeline-table";
 import { AdminListingReview } from "@/components/admin-listing-review";
 import { AdminErrors } from "@/components/admin-errors";
+import { AdminPrivacyRequests } from "@/components/admin-privacy-requests";
 
 const nav = (
   <>
@@ -13,6 +14,7 @@ const nav = (
     <Link href="/admin/pipeline">Pipeline</Link>
     <Link href="/admin/listings">Listings</Link>
     <Link href="/admin/errors">Errors</Link>
+    <Link href="/admin/privacy">Privacy</Link>
     <Link href="/admin/mfa">Security</Link>
   </>
 );
@@ -65,4 +67,10 @@ export function AdminErrorsPage() {
       )}
     </DashboardShell>
   );
+}
+
+export function AdminPrivacyPage() {
+  return <DashboardShell allow={["admin"]} label="OPERATOR" nav={nav}>
+    {(viewer) => <AdminMfaGate mfa={viewer.mfa}><AdminPrivacyRequests /></AdminMfaGate>}
+  </DashboardShell>;
 }

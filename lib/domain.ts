@@ -2,6 +2,15 @@ import { z } from "zod";
 
 export const regions = ["Africa", "Latin America", "MENA", "South Asia", "Southeast Asia", "Other"] as const;
 export const capitalRegions = ["US", "UK", "EU", "APAC"] as const;
+export const privacyJurisdictions = ["US", "UK", "EU", "APAC", "OTHER"] as const;
+export const privacyRequestKinds = [
+  "access",
+  "correction",
+  "deletion",
+  "restriction",
+  "objection",
+  "appeal",
+] as const;
 export const stages = ["pre-seed", "seed", "series-a", "series-b+", "growth", "institutional"] as const;
 export const organizationTypes = ["startup", "institution"] as const;
 export const signupTypes = ["startup", "institution", "individual"] as const;
@@ -53,6 +62,22 @@ export const participantKinds = ["startup", "institution", "individual"] as cons
 export type AccountRole = (typeof accountRoles)[number];
 export type InvestorType = (typeof investorTypes)[number];
 export type ParticipantKind = (typeof participantKinds)[number];
+export type PrivacyJurisdiction = (typeof privacyJurisdictions)[number];
+export type PrivacyRequestKind = (typeof privacyRequestKinds)[number];
+
+export const privacyRequestSchema = z.object({
+  kind: z.enum(privacyRequestKinds),
+  jurisdiction: z.enum(privacyJurisdictions),
+  details: z.string().trim().max(2000),
+});
+
+/** Public participant cards must be recognizable without becoming a directory of full identities. */
+export function maskParticipantLabel(value: string): string {
+  return value.trim().split(/\s+/).filter(Boolean).slice(0, 4).map((part) => {
+    const characters = Array.from(part);
+    return characters.length <= 1 ? `${characters[0] ?? ""}•` : `${characters[0]}${"•".repeat(Math.min(3, characters.length - 1))}`;
+  }).join(" ");
+}
 
 export const INVESTOR_TYPE_LABELS: Record<InvestorType, string> = {
   angel: "Angel",
@@ -163,6 +188,25 @@ export const interestSignupSchema = z.object({
 });
 
 export type InterestSignup = z.infer<typeof interestSignupSchema>;
+
+/**
+ * Whether an intake belongs on the participant account-setup surface.
+ *
+ * Startups and institutions are participant records by definition. An
+ * individual is a participant only when they asked for capital-access or
+ * catalogue support; someone who joined only to invest, mentor, partner, or
+ * research belongs in a different account flow. Keeping this policy here
+ * prevents the public login UI and the backend claim endpoint from drifting.
+ */
+export function isParticipantAccountSetupEligible(
+  signup: Pick<InterestSignup, "accountType" | "goals">,
+): boolean {
+  if (signup.accountType !== "individual") return true;
+  return signup.goals.some(
+    (goal) =>
+      goal === "raise-capital" || goal === "find-investors" || goal === "join-catalogue",
+  );
+}
 
 export const catalogueInterestSchema = z.object({
   profileId: z.string().trim().min(1).max(60),

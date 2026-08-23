@@ -19,6 +19,7 @@ export function AdminDashboard() {
           <Link href="/admin/pipeline">Pipeline</Link>
           <Link href="/admin/listings">Listings</Link>
           <Link href="/admin/errors">Errors</Link>
+          <Link href="/admin/privacy">Privacy</Link>
           <Link href="/admin/mfa">Security</Link>
         </>
       }

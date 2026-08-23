@@ -96,12 +96,9 @@ export const myActivity = query({
       }
     }
 
-    // Replies arrive as Resend inbound webhook events rather than as message
-    // rows, so they are counted from the webhook log.
-    const inbound = await ctx.db.query("webhookEvents").collect();
-    for (const event of inbound) {
-      if (event.type === "email.received") repliedAt.push(event.receivedAt);
-    }
+    // Inbound webhook rows currently have no organization/message foreign key.
+    // Counting them here would leak deployment-wide activity into every tenant,
+    // so replies remain explicitly untracked until attribution is persisted.
 
     return {
       contactedAt,

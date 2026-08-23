@@ -305,21 +305,18 @@ export const approveMessage = mutation({
 export const sendApproved = action({
   args: { messageId: v.id("messages"), unsubscribeUrl: v.string() },
   handler: async (ctx, args): Promise<{ status: string; providerMessageId: string | null }> => {
-    const context = await ctx.runQuery(internal.outreach.sendContext, { messageId: args.messageId });
+    let unsubscribe: URL;
+    try { unsubscribe = new URL(args.unsubscribeUrl); }
+    catch { throw new Error("Outbound policy blocked this message: invalid unsubscribe URL"); }
+    if (unsubscribe.protocol !== "https:") throw new Error("Outbound policy blocked this message: unsubscribe URL must use HTTPS");
 
-    const policy = evaluateContactPolicy({
-      outboundEnabled: process.env.OUTBOUND_EMAIL_ENABLED === "true",
-      approved: context.approved,
-      hasSource: context.hasSource,
-      isSuppressed: context.isSuppressed,
-      contactType: context.contactType,
-      jurisdictionReviewed: process.env.JURISDICTION_REVIEWED === "true",
-      hasPostalIdentity: Boolean(process.env.SENDER_POSTAL_ADDRESS),
-      hasUnsubscribe: Boolean(args.unsubscribeUrl),
+    // Atomically re-checks every policy gate and moves approved → queued.
+    // Concurrent action calls cannot both reserve the same message, preventing
+    // duplicate sends even before the provider idempotency key is considered.
+    const context = await ctx.runMutation(internal.outreach.reserveSend, {
+      messageId: args.messageId,
+      hasUnsubscribe: true,
     });
-    if (!policy.allowed) {
-      throw new Error(`Outbound policy blocked this message: ${policy.reasons.join("; ")}`);
-    }
 
     const providers = emailProviders();
     if (providers.length === 0) {
@@ -353,8 +350,8 @@ export const sendApproved = action({
   },
 });
 
-export const sendContext = internalQuery({
-  args: { messageId: v.id("messages") },
+export const reserveSend = internalMutation({
+  args: { messageId: v.id("messages"), hasUnsubscribe: v.boolean() },
   handler: async (ctx, args) => {
     const message = await ctx.db.get(args.messageId);
     if (!message) throw new Error("Message not found");
@@ -373,7 +370,7 @@ export const sendContext = internalQuery({
         .withIndex("by_email_hash", (q) => q.eq("emailHash", emailHash))
         .unique()) !== null;
 
-    return {
+    const context = {
       to: investor.email ?? null,
       subject: message.subject,
       body: message.body,
@@ -383,6 +380,19 @@ export const sendContext = internalQuery({
       hasSource: investor.sourceIds.length > 0,
       isSuppressed,
     };
+    const policy = evaluateContactPolicy({
+      outboundEnabled: process.env.OUTBOUND_EMAIL_ENABLED === "true",
+      approved: context.approved,
+      hasSource: context.hasSource,
+      isSuppressed: context.isSuppressed,
+      contactType: context.contactType,
+      jurisdictionReviewed: process.env.JURISDICTION_REVIEWED === "true",
+      hasPostalIdentity: Boolean(process.env.SENDER_POSTAL_ADDRESS),
+      hasUnsubscribe: args.hasUnsubscribe,
+    });
+    if (!policy.allowed) throw new Error(`Outbound policy blocked this message: ${policy.reasons.join("; ")}`);
+    await ctx.db.patch(message._id, { status: "queued" });
+    return context;
   },
 });
 
@@ -393,6 +403,8 @@ export const markSendResult = internalMutation({
     providerMessageId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const message = await ctx.db.get(args.messageId);
+    if (!message || message.status !== "queued") throw new Error("Message is not reserved for delivery");
     await ctx.db.patch(args.messageId, {
       status: args.status,
       providerMessageId: args.providerMessageId,

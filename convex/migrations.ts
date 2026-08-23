@@ -1,4 +1,8 @@
 import { internalMutation } from "./_generated/server";
+import { paginationOptsValidator, paginationResultValidator } from "convex/server";
+import { v } from "convex/values";
+import { issueInviteForSignup } from "./invites";
+import { isParticipantAccountSetupEligible } from "../lib/domain";
 
 /**
  * One-off migrations, run by an operator against a specific deployment.
@@ -62,5 +66,59 @@ export const archiveLegacyAuditLog = internalMutation({
     }
 
     return { archived, remaining: rows.length - archived };
+  },
+});
+
+/**
+ * Auto-approves participant intake records created before account invites
+ * existed and gives each one a first-password setup code.
+ *
+ * Run in bounded pages and pass the returned continueCursor into the next
+ * invocation until isDone is true. The helper is idempotent: rows that already
+ * have an invite reuse it, active rows remain active, and declined records are
+ * never reopened.
+ */
+export const backfillParticipantInvites = internalMutation({
+  args: { paginationOpts: paginationOptsValidator },
+  returns: paginationResultValidator(v.object({
+    signupId: v.id("interestSignups"),
+    outcome: v.union(
+      v.literal("issued"),
+      v.literal("existing"),
+      v.literal("ineligible"),
+      v.literal("declined"),
+    ),
+  })),
+  handler: async (ctx, args) => {
+    const page = await ctx.db.query("interestSignups").paginate(args.paginationOpts);
+    const now = Date.now();
+    const outcomes = [];
+
+    for (const signup of page.page) {
+      if (signup.status === "declined") {
+        outcomes.push({ signupId: signup._id, outcome: "declined" as const });
+        continue;
+      }
+      if (!isParticipantAccountSetupEligible(signup)) {
+        outcomes.push({ signupId: signup._id, outcome: "ineligible" as const });
+        continue;
+      }
+
+      const before = await ctx.db
+        .query("accountInvites")
+        .withIndex("by_signup", (q) => q.eq("signupId", signup._id))
+        .order("desc")
+        .first();
+      await issueInviteForSignup(ctx, signup, now, "auto");
+      if (signup.status === "new" || signup.status === "reviewing") {
+        await ctx.db.patch(signup._id, { status: "invited", updatedAt: now });
+      }
+      outcomes.push({
+        signupId: signup._id,
+        outcome: before ? ("existing" as const) : ("issued" as const),
+      });
+    }
+
+    return { ...page, page: outcomes };
   },
 });

@@ -1,5 +1,6 @@
 import { internalMutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { issueInviteForSignup } from "./invites";
 
 const accountType = v.union(v.literal("startup"), v.literal("institution"), v.literal("individual"));
 
@@ -69,6 +70,13 @@ export const record = internalMutation({
     source: v.string(),
     consentRecordedAt: v.number(),
   },
+  returns: v.object({
+    id: v.id("interestSignups"),
+    status: v.union(v.literal("new"), v.literal("reviewing"), v.literal("invited"), v.literal("active"), v.literal("declined")),
+    created: v.boolean(),
+    invited: v.boolean(),
+    inviteCode: v.optional(v.string()),
+  }),
   handler: async (ctx, args) => {
     const now = Date.now();
     const existing = await ctx.db
@@ -82,18 +90,48 @@ export const record = internalMutation({
         updatedAt: now,
         submissionCount: existing.submissionCount + 1,
       });
-      return { id: existing._id, status: existing.status, created: false };
+      // Re-submitting does not resurrect a withdrawn invite: `issueInviteForSignup`
+      // returns the live one if there is one, and a revoked code stays revoked
+      // until an operator reissues it. Otherwise anyone an operator had turned
+      // away could let themselves back in by filling the form again.
+      const reused = await issueInviteForSignup(ctx, existing, now);
+      return {
+        id: existing._id,
+        status: existing.status,
+        created: false,
+        invited: !reused.redeemedAt && !reused.revokedAt,
+      };
     }
 
     const id = await ctx.db.insert("interestSignups", {
       ...args,
-      status: "new",
+      // Auto-approved: every submission is advanced past review rather than
+      // waiting on an operator. The `new` and `reviewing` statuses stay in the
+      // schema because an operator can still move a record back into them, and
+      // because historic rows predate this behaviour.
+      status: "invited",
       createdAt: now,
       updatedAt: now,
       submissionCount: 1,
     });
 
-    return { id, status: "new" as const, created: true };
+    // No `adminAuditLog` row is written for auto-issuance. That table requires
+    // an `actorUserId`, and there is no human actor here — inventing one would
+    // put a fabricated identity into the record that operators trust. The
+    // invite's own `createdAt` is the evidence that it was issued; the audit
+    // log stays reserved for acts a person actually performed.
+    const invite = await issueInviteForSignup(ctx, { _id: id, email: args.email }, now);
+
+    return {
+      id,
+      status: "invited" as const,
+      created: true,
+      invited: true,
+      // Returned only on the first submission. A repeat request containing
+      // merely the same public email address must never recover a live bearer
+      // code that was issued to somebody else.
+      inviteCode: invite.code,
+    };
   },
 });
 
@@ -103,8 +141,18 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 // or free-text fields here — this backs a public "real data" display.
 export const publicStats = query({
   args: {},
+  returns: v.object({
+    total: v.number(),
+    byAccountType: v.object({ startup: v.number(), institution: v.number(), individual: v.number() }),
+    byRegion: v.object({ US: v.number(), UK: v.number(), EU: v.number(), APAC: v.number() }),
+    last7Days: v.number(),
+    latestCreatedAt: v.union(v.number(), v.null()),
+    complete: v.boolean(),
+  }),
   handler: async (ctx) => {
-    const signups = await ctx.db.query("interestSignups").collect();
+    const bounded = await ctx.db.query("interestSignups").order("desc").take(10_001);
+    const complete = bounded.length <= 10_000;
+    const signups = bounded.slice(0, 10_000);
     const now = Date.now();
 
     const byAccountType = { startup: 0, institution: 0, individual: 0 };
@@ -123,6 +171,6 @@ export const publicStats = query({
       }
     }
 
-    return { total: signups.length, byAccountType, byRegion, last7Days, latestCreatedAt };
+    return { total: signups.length, byAccountType, byRegion, last7Days, latestCreatedAt, complete };
   },
 });

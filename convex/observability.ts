@@ -11,6 +11,7 @@ import { internal } from "./_generated/api";
 import { getCurrentUser, recordAudit, requireAdmin } from "./authz";
 import { fingerprint, normalizeRoute, redact } from "../lib/redaction";
 import { describeFailures, emailProviders, sendEmail } from "./providers";
+import { consumeRateLimit } from "./rateLimit";
 
 /**
  * Error capture and alerting.
@@ -85,6 +86,8 @@ export const reportClientError = mutation({
     const route = normalizeRoute(args.route);
     const print = fingerprint("client", message, route);
     const now = Date.now();
+    const attempt = await consumeRateLimit(ctx, `client-error:${print}`, 100, 10 * 60 * 1000);
+    if (attempt.limited) return { recorded: false as const, reason: "rate_limited" as const };
 
     const existing = await ctx.db
       .query("errorEvents")

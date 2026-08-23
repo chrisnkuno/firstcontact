@@ -159,6 +159,7 @@ function ProfileForm({ viewer }: { viewer: Viewer }) {
           ""
         )}
       </p>
+      <p><Link href="/account/privacy">Download your data or make a privacy request →</Link></p>
     </form>
   );
 }

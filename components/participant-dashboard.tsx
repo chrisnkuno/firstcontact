@@ -7,6 +7,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { DashboardShell } from "@/components/dashboard-shell";
 import { GuidancePanel, OnboardingChecklist } from "@/components/onboarding";
+import { InviteRedemption } from "@/components/invite-redemption";
 import {
   BarSeriesChart,
   ChartFigure,
@@ -43,6 +44,7 @@ export function ParticipantDashboard() {
         <>
           <Link href="/dashboard/organization">Your listing</Link>
           <Link href="/dashboard/profile">Profile</Link>
+          <Link href="/account/privacy">Privacy</Link>
           <Link href="/plan">Planner</Link>
         </>
       }
@@ -123,6 +125,10 @@ function ParticipantBody({ name }: { name: string }) {
           </p>
         </div>
       </div>
+
+      {/* Renders nothing once this account is linked to an intake record, so an
+          account matched automatically by verified email never sees it. */}
+      <InviteRedemption />
 
       <OnboardingChecklist
         role="participant"

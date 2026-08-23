@@ -8,6 +8,23 @@
   --panel: #ebe9e1;
   --white: #fff;
   --amber: #d98c22;
+  --surface-soft: #f8f7f2;
+  --surface-raised: #ffffff;
+}
+
+html[data-theme="dark"] {
+  --paper: #0d1511;
+  --ink: #edf5ef;
+  --muted: #a7b5ac;
+  --line: #334239;
+  --acid: #b8ec4d;
+  --dark: #07100c;
+  --panel: #141f19;
+  --white: #18251e;
+  --amber: #efad4e;
+  --surface-soft: #121c17;
+  --surface-raised: #18251e;
+  color-scheme: dark;
 }
 
 /*
@@ -59,6 +76,143 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-sans),sans-serif;
+  transition: background-color .2s ease, color .2s ease;
+}
+
+.theme-toggle {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--white) 90%, transparent);
+  color: var(--ink);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .14);
+  backdrop-filter: blur(12px);
+  font: 600 10px/1 var(--font-mono);
+  letter-spacing: .04em;
+}
+
+.theme-toggle:hover {
+  transform: translateY(-1px);
+  border-color: var(--muted);
+}
+
+.theme-toggle:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+html[data-theme="dark"] :where(
+  .apply-form,
+  .success-card,
+  .control-stack button,
+  .control-stack select,
+  .control-stack input,
+  .draft-copy,
+  .catalogue-card:hover,
+  .interest-form,
+  .admin-login-card,
+  .admin-table select,
+  .status-card,
+  .dashboard-header,
+  .dashboard-panel,
+  .pipeline-step i
+) {
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] :where(
+  .apply-form input,
+  .apply-form select,
+  .apply-form textarea,
+  .matches-panel,
+  .detail-panel,
+  .activity-panel,
+  .system-bento article:hover,
+  .workspace-head-actions > a,
+  .workspace-head-actions > button,
+  .workspace-control-drawer,
+  .drawer-checks label,
+  .data-boundaries article,
+  .catalogue-card,
+  .catalogue-drawer,
+  .interest-form input,
+  .interest-form textarea,
+  .admin-login-card input,
+  .admin-table th,
+  .status-card input,
+  .participant-access
+) {
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] :where(
+  .catalogue-page,
+  .participant-login-page
+) {
+  background-color: var(--paper);
+}
+
+html[data-theme="dark"] :where(
+  .language-switcher,
+  .catalogue-intro p,
+  .catalogue-intro small,
+  .participant-access > p,
+  .participant-access form > p,
+  .participant-choice-grid small,
+  .participant-access-privacy,
+  .participant-access-loading,
+  .participant-access-empty,
+  .signup-invite-code p
+) {
+  color: var(--muted);
+}
+
+html[data-theme="dark"] .participant-choice-grid button {
+  background: var(--white);
+  color: var(--ink);
+}
+
+html[data-theme="dark"] .participant-password-ready,
+html[data-theme="dark"] .signup-invite-code {
+  border-color: #526b5b;
+  background: #182b20;
+}
+
+html[data-theme="dark"] .auth-error {
+  border-color: #70413e;
+  background: #321d1c;
+  color: #ffb8b3;
+}
+
+html[data-theme="dark"] input,
+html[data-theme="dark"] select,
+html[data-theme="dark"] textarea {
+  accent-color: var(--acid);
+}
+
+@media (max-width: 520px) {
+  .theme-toggle {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .theme-toggle span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
 }
 
 a {
@@ -4784,6 +4938,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 }
 
 /* Auth, onboarding and dashboard chrome. */
+.privacy-center-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; align-items: start; }
+.privacy-control-card { margin: 0; }
+.privacy-control-card textarea { resize: vertical; }
+.privacy-control-card > small { display: block; margin-top: .8rem; }
+.privacy-request-history { grid-column: 1 / -1; }
+.privacy-request-history ol { list-style: none; padding: 0; display: grid; gap: .75rem; }
+.privacy-request-history li { border: 1px solid var(--line); padding: 1rem; }
+.privacy-request-history li > div { display: flex; align-items: center; gap: .55rem; flex-wrap: wrap; }
+.privacy-request-history button { border: 0; background: none; color: inherit; padding: .4rem 0; display: inline-flex; gap: .35rem; align-items: center; text-decoration: underline; cursor: pointer; }
+.privacy-complete { display: inline-flex; gap: .35rem; align-items: center; margin-top: .5rem; }
+.privacy-request-message { border-left: 3px solid var(--accent); padding-left: .75rem; }
+@media (max-width: 760px) { .privacy-center-grid { grid-template-columns: 1fr; } .privacy-request-history { grid-column: auto; } }
+.privacy-admin-list { display: grid; gap: 1rem; margin-top: 1rem; }
+.privacy-admin-list > article { border: 1px solid var(--line); padding: 1rem; }
+.privacy-admin-list > article > header { display: flex; justify-content: space-between; gap: 1rem; }
+.privacy-admin-list small { display: block; }
+.privacy-admin-list form { display: grid; gap: .75rem; margin-top: 1rem; }
 
 .auth-page {
   min-height: 100dvh;
@@ -5571,4 +5742,360 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   font-size: var(--text-xs);
   line-height: 1.6;
   overflow-wrap: anywhere;
+}
+
+/* ---------------------------------------------------------------------------
+   Participant invites
+
+   Two surfaces: the operator's pipeline cell, where a live code has to be
+   readable at a glance and copyable in one action, and the participant's
+   redemption panel on the dashboard.
+   --------------------------------------------------------------------------- */
+
+/* No screen-reader-only utility existed before the invite field needed one. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.invite-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-start;
+}
+
+.invite-code {
+  /* Tabular figures and generous tracking: this string gets read aloud and
+     retyped, so the difference between characters matters more than density. */
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--white);
+  white-space: nowrap;
+}
+
+.invite-actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
+.invite-cell small {
+  color: var(--muted);
+  font-size: var(--text-3xs);
+}
+
+.invite-state {
+  color: var(--muted);
+  font-size: var(--text-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.invite-redeem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+  padding: var(--space-5);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.invite-redeem strong {
+  display: block;
+  font-size: var(--text-sm);
+}
+
+.invite-redeem p {
+  margin: var(--space-1) 0 0;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  max-width: 60ch;
+}
+
+.invite-redeem-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.invite-redeem-row input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.invite-redeem-row button {
+  padding: 10px 18px;
+  border: 1px solid var(--ink);
+  border-radius: 8px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.invite-redeem-row button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.invite-redeemed {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-6);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font-size: var(--text-xs);
+}
+
+/* Participant-first sign-in: the chooser and ordinary credential form remain
+   two clear surfaces so returning users are never forced through setup again. */
+.participant-login-page {
+  position: relative;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background:
+    radial-gradient(circle at 14% 8%, rgba(161, 190, 164, .2), transparent 34rem),
+    var(--paper);
+}
+
+.participant-login-tools {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 2;
+}
+
+.participant-login-shell {
+  width: min(1180px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(340px, .75fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.participant-login-shell .auth-card {
+  position: sticky;
+  top: var(--space-8);
+}
+
+.participant-access {
+  min-width: 0;
+  padding: clamp(24px, 4vw, 52px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #f8f7f2;
+}
+
+.participant-access > span,
+.signup-invite-code > span {
+  display: block;
+  font: 600 var(--text-2xs)/1 var(--font-mono);
+  letter-spacing: .11em;
+  color: var(--muted);
+}
+
+.participant-access h1,
+.participant-access h2 {
+  margin: var(--space-3) 0 var(--space-2);
+  letter-spacing: -.035em;
+}
+
+.participant-access h1 { font-size: clamp(30px, 4vw, 52px); }
+.participant-access h2 { font-size: clamp(28px, 3vw, 42px); }
+
+.participant-access > p,
+.participant-access form > p,
+.participant-password-ready p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.participant-search,
+.participant-access form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-top: var(--space-5);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.participant-search input,
+.participant-access form input {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--ink);
+  font: 400 var(--text-sm)/1.3 var(--font-sans);
+}
+
+.participant-access form label small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.participant-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: var(--space-4);
+  max-height: 540px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.participant-choice-grid button {
+  min-width: 0;
+  min-height: 142px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--white);
+  color: var(--ink);
+  cursor: pointer;
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.participant-choice-grid button:hover,
+.participant-choice-grid button:focus-visible {
+  transform: translateY(-2px);
+  border-color: #829289;
+  box-shadow: 0 12px 28px rgba(24, 43, 34, .08);
+  outline: none;
+}
+
+.participant-choice-grid button > span {
+  font: 600 9px/1 var(--font-mono);
+  letter-spacing: .1em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.participant-choice-grid strong {
+  margin-top: 17px;
+  font-size: var(--text-md);
+  line-height: 1.15;
+}
+
+.participant-choice-grid small {
+  margin-top: 5px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.participant-choice-grid em {
+  margin-top: auto;
+  padding-top: 15px;
+  font: 600 10px/1 var(--font-mono);
+  color: #355f43;
+  font-style: normal;
+  text-transform: uppercase;
+}
+
+.participant-access-privacy,
+.participant-access-loading,
+.participant-access-empty {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: var(--space-4);
+  color: var(--muted);
+  font-size: var(--text-2xs);
+}
+
+.participant-access-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--space-6);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 600 var(--text-xs)/1 var(--font-sans);
+  cursor: pointer;
+}
+
+.participant-access-org { margin-bottom: var(--space-4) !important; }
+
+.participant-access form .button { margin-top: var(--space-5); }
+
+.participant-password-ready {
+  display: flex;
+  gap: 12px;
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid #b9cbbb;
+  border-radius: 10px;
+  background: #edf4eb;
+}
+
+.signup-invite-code {
+  margin-top: 24px;
+  padding: 20px;
+  border: 1px solid #9eb6a2;
+  border-radius: 12px;
+  background: #edf4eb;
+}
+
+.signup-invite-code code {
+  display: block;
+  margin: 13px 0;
+  font: 600 clamp(17px, 3vw, 24px)/1 var(--font-mono);
+  letter-spacing: .1em;
+  overflow-wrap: anywhere;
+}
+
+.signup-invite-code p {
+  margin: 0;
+  color: #506359;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+@media (max-width: 860px) {
+  .participant-login-shell { grid-template-columns: 1fr; }
+  .participant-login-shell .auth-card { position: static; max-width: none; }
+}
+
+@media (max-width: 520px) {
+  .participant-login-page { padding: var(--space-3); }
+  .participant-login-tools { position: static; width: 100%; margin-bottom: var(--space-3); }
+  .participant-access { padding: 22px 16px; }
+  .participant-choice-grid { grid-template-columns: 1fr; max-height: none; }
+  .participant-choice-grid button { min-height: 126px; }
 }

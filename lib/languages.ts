@@ -11,3 +11,13 @@ export const supportedLanguages = [
 export type LanguageCode = (typeof supportedLanguages)[number]["code"];
 
 export const defaultLanguage: LanguageCode = "en";
+
+const supportedLanguageCodes = new Set<string>(supportedLanguages.map((language) => language.code));
+
+export function isLanguageCode(value: string): value is LanguageCode {
+  return supportedLanguageCodes.has(value);
+}
+
+export function languageDirection(language: LanguageCode): "ltr" | "rtl" {
+  return language === "ar" ? "rtl" : "ltr";
+}

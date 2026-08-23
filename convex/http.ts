@@ -49,7 +49,14 @@ http.route({
       });
     }
 
+    const declaredLength = Number(request.headers.get("content-length") ?? "0");
+    if (Number.isFinite(declaredLength) && declaredLength > 512 * 1024) {
+      return new Response(JSON.stringify({ error: "Webhook body too large" }), { status: 413, headers: { "content-type": "application/json", "x-content-type-options": "nosniff" } });
+    }
     const body = await request.text();
+    if (new TextEncoder().encode(body).byteLength > 512 * 1024) {
+      return new Response(JSON.stringify({ error: "Webhook body too large" }), { status: 413, headers: { "content-type": "application/json", "x-content-type-options": "nosniff" } });
+    }
     const verification = await verifyWebhookSignature({
       secret,
       body,

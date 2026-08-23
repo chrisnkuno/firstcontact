@@ -182,18 +182,17 @@ legal decision rather than a technical constant.
 
 | Right | Status |
 |---|---|
-| Access | **Manual.** Operator exports from the Convex dashboard |
-| Rectification | Partial — users can edit their own profile and listing |
-| Erasure | **Manual.** Procedure in `docs/RUNBOOKS.md` §5 |
-| Restriction | Partial — an account can be suspended; a listing withdrawn instantly |
-| Portability | **Manual** |
-| Objection to outreach | Structural — outreach is disabled, and suppressions are permanent |
+| Access | Signed-in users can download a machine-readable account data copy; broader access requests are tracked in-app |
+| Rectification | Users can edit their own profile and listing and submit a tracked correction request |
+| Erasure | Tracked, account-verified request with operator review; procedure in `docs/RUNBOOKS.md` §5 |
+| Restriction | A listing can be withdrawn instantly; broader restriction requests are tracked in-app |
+| Portability | Machine-readable JSON export from `/account/privacy` |
+| Objection and appeal | Tracked in-app; outreach remains disabled and suppressions are permanent |
 
-> **The significant gap.** There is no self-service account deletion and no
-> scripted erasure. Under a GDPR frame, erasure carries a one-month statutory
-> deadline, and a manual dashboard procedure is slow and error-prone at any
-> volume. `users:deleteMyAccount` should be built before this deployment holds
-> records for a meaningful number of people.
+> **Remaining gap.** Account deletion is intentionally reviewed rather than
+> immediate, but the final cascade is still operator-run. Identity, shared
+> organization records, audit integrity, suppressions, fraud evidence and legal
+> holds must be classified before a safe scripted erasure can replace that step.
 
 ---
 
@@ -202,15 +201,15 @@ legal decision rather than a technical constant.
 | Processor | Purpose | Location |
 |---|---|---|
 | Convex | Database, functions, auth | US (check your deployment region) |
-| GitHub Pages | Static site hosting | Global CDN |
-| Resend / Postmark / SendGrid | Transactional email, if configured | US |
+| Vercel | Static site hosting and security headers | Global CDN |
+| Resend | Transactional email on the hosted deployment | Provider infrastructure; verify the applicable DPA and region |
 | OpenAI / Anthropic / others | Drafting and translation, if configured | US |
 | Exa / Tavily / Brave | Investor discovery, if configured | US |
 
 Every optional processor is genuinely optional: an unconfigured capability
 reports itself as unconfigured rather than degrading to a fabricated result, so
 a deployment that configures nothing shares data with nobody but Convex and
-GitHub.
+its selected static host.
 
 > Data Processing Agreements: `[OPERATOR: not reviewed]`
 > Standard Contractual Clauses for transfers: `[OPERATOR: not reviewed]`
@@ -237,8 +236,8 @@ Everything blocking a launch that collects real personal data at volume:
    outbound. (§4)
 4. Review DPAs and transfer mechanisms for each configured processor. (§7)
 5. Write the breach notification procedure against the chosen regime. (§8)
-6. Build self-service erasure, or accept the manual procedure and its deadline
-   risk. (§6)
+6. Script and rehearse the final erasure cascade; until then, operate the tracked
+   request queue within the applicable deadline. (§6)
 7. Choose and document an off-vendor backup location. (`RUNBOOKS.md` §1)
 8. Run the restore rehearsal at least once. (`RUNBOOKS.md` §2)
 9. Purge the orphaned pre-migration auth tables on every deployment.

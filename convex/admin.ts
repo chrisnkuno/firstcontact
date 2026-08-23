@@ -80,23 +80,59 @@ export const listSignups = query({
           .take(limit)
       : await ctx.db.query("interestSignups").order("desc").take(limit);
 
-    return records.map((record) => ({
-      id: record._id,
-      accountType: record.accountType,
-      name: record.name,
-      email: record.email,
-      location: record.location,
-      organizationName: record.organizationName,
-      individualRole: record.individualRole,
-      stage: record.stage,
-      goals: record.goals,
-      targetRegions: record.targetRegions,
-      status: record.status,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-      submissionCount: record.submissionCount,
-      hasAccount: record.userId !== undefined,
-    }));
+    // One read per row rather than a join: the page is capped at 200 records
+    // and `by_signup` is indexed, so this stays bounded, and the alternative
+    // (collecting every invite) grows without limit as the pipeline does.
+    const now = Date.now();
+    return await Promise.all(
+      records.map(async (record) => {
+        const invite = await ctx.db
+          .query("accountInvites")
+          .withIndex("by_signup", (query) => query.eq("signupId", record._id))
+          .order("desc")
+          .first();
+
+        return {
+          id: record._id,
+          accountType: record.accountType,
+          name: record.name,
+          email: record.email,
+          location: record.location,
+          organizationName: record.organizationName,
+          individualRole: record.individualRole,
+          stage: record.stage,
+          goals: record.goals,
+          targetRegions: record.targetRegions,
+          status: record.status,
+          createdAt: record.createdAt,
+          updatedAt: record.updatedAt,
+          submissionCount: record.submissionCount,
+          hasAccount: record.userId !== undefined,
+          // The plain-text code reaches the browser only on this admin-only,
+          // TOTP-gated query, and only while it is still usable. A spent,
+          // withdrawn or expired code is reported by state alone — there is no
+          // reason for an operator to read one back, and every reason not to
+          // leave it on screen.
+          invite: invite
+            ? {
+                id: invite._id,
+                state: invite.redeemedAt
+                  ? ("redeemed" as const)
+                  : invite.revokedAt
+                    ? ("revoked" as const)
+                    : invite.expiresAt <= now
+                      ? ("expired" as const)
+                      : ("live" as const),
+                code:
+                  !invite.redeemedAt && !invite.revokedAt && invite.expiresAt > now
+                    ? invite.code
+                    : null,
+                expiresAt: invite.expiresAt,
+              }
+            : null,
+        };
+      }),
+    );
   },
 });
 

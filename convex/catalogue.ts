@@ -40,7 +40,9 @@ export const recordInterest = internalMutation({
 export const publicStats = query({
   args: {},
   handler: async (ctx) => {
-    const signals = await ctx.db.query("catalogueInterestSignals").collect();
+    const bounded = await ctx.db.query("catalogueInterestSignals").order("desc").take(10_001);
+    const complete = bounded.length <= 10_000;
+    const signals = bounded.slice(0, 10_000);
     const now = Date.now();
 
     const uniqueProfiles = new Set<string>();
@@ -60,6 +62,7 @@ export const publicStats = query({
       uniqueProfiles: uniqueProfiles.size,
       last7Days,
       latestCreatedAt,
+      complete,
     };
   },
 });
